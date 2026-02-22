@@ -121,23 +121,10 @@ async def get_all_command_names() -> list[str]:
         return []
 
     command_names = set()
-    # Use fetch_commands() to get commands that are synced to Discord
-    # This ensures we get the most up-to-date list.
-    try:
-        commands = await bot.tree.fetch_commands()
-    except Exception as e:
-        print(f"[ERROR] Failed to fetch commands from Discord: {e}")
-        return []
-
-    for command in commands:
+    for command in bot.tree.get_commands(): # Use local commands
         if isinstance(command, app_commands.Group):
-            # For groups, we might need to fetch subcommands if they are not directly available
-            # However, fetch_commands() usually returns top-level commands.
-            # If subcommands are not listed directly, we might need a different approach
-            # or rely on them being part of the command name like "group sub"
-            command_names.add(command.name) # Add the group name itself
-            # discord.py's fetch_commands() doesn't typically return subcommands nested this way
-            # The client-side logic for "group sub" handles this.
+            for subcommand in command.commands:
+                command_names.add(f"{command.name} {subcommand.name}")
         else:
             command_names.add(command.name)
     
