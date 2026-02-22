@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Sparkles, Trash2, Plus, MessageSquare, Cpu, Hash } from "lucide-react";
+import { Loader2, Sparkles, Trash2, Plus, MessageSquare, Cpu, Hash, Globe } from "lucide-react"; // Add Globe
 import { api, BotStatus, ChannelPrompt, ChannelProviderItem, DiscordChannel, ProvidersResponse } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch"; // Add Switch
+import { Input } from "@/components/ui/input"; // Add Input
 import { toast } from "sonner";
 
 export default function ChannelSettingsPage() {
@@ -26,6 +28,12 @@ export default function ChannelSettingsPage() {
   const [newPrompt, setNewPrompt] = useState("");
   const [targetProvider, setTargetProvider] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Auto-translate states
+  const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(false);
+  const [autoTranslateTargetLanguage, setAutoTranslateTargetLanguage] = useState("");
+  const [currentAutoTranslateSetting, setCurrentAutoTranslateSetting] = useState<{ enabled: boolean, target_language: string } | null>(null);
+
 
   const token = (session as { accessToken?: string })?.accessToken;
 
@@ -53,6 +61,32 @@ export default function ChannelSettingsPage() {
     .finally(() => setLoading(false));
   }, [token]);
 
+  // New useEffect to fetch auto-translate settings for the selected channel
+  useEffect(() => {
+    if (!token || !targetChannelId) return;
+
+    // Reset previous auto-translate states when channel changes
+    setAutoTranslateEnabled(false);
+    setAutoTranslateTargetLanguage("");
+    setCurrentAutoTranslateSetting(null);
+
+    api.getChannelAutoTranslate(token, targetChannelId)
+      .then((setting) => {
+        if (setting) {
+          setCurrentAutoTranslateSetting(setting);
+          setAutoTranslateEnabled(setting.enabled);
+          setAutoTranslateTargetLanguage(setting.target_language || "");
+        } else {
+          // Reset if no setting exists for the channel
+          setCurrentAutoTranslateSetting(null);
+          setAutoTranslateEnabled(false);
+          setAutoTranslateTargetLanguage("");
+        }
+      })
+      .catch(() => toast.error("Failed to load auto-translate settings for this channel."))
+  }, [token, targetChannelId]);
+
+
   const refreshPrompts = async () => {
     if (!token) return;
     try {
@@ -72,6 +106,25 @@ export default function ChannelSettingsPage() {
       toast.error("Failed to refresh channel providers");
     }
   };
+
+  const refreshAutoTranslateSetting = async () => {
+    if (!token || !targetChannelId) return;
+    try {
+      const setting = await api.getChannelAutoTranslate(token, targetChannelId);
+      if (setting) {
+        setCurrentAutoTranslateSetting(setting);
+        setAutoTranslateEnabled(setting.enabled);
+        setAutoTranslateTargetLanguage(setting.target_language || "");
+      } else {
+        setCurrentAutoTranslateSetting(null);
+        setAutoTranslateEnabled(false);
+        setAutoTranslateTargetLanguage("");
+      }
+    } catch (err) {
+      toast.error("Failed to refresh auto-translate settings.");
+    }
+  };
+
 
   async function handleSetPrompt() {
     if (!token || !selectedGuild || !targetChannelId || !newPrompt) {
@@ -138,6 +191,39 @@ export default function ChannelSettingsPage() {
       refreshChannelProviders();
     } catch (err) {
       toast.error("Failed to reset channel provider");
+    }
+  }
+
+  async function handleSaveAutoTranslate() {
+    if (!token || !selectedGuild || !targetChannelId) {
+      toast.error("Please select a channel.");
+      return;
+    }
+
+    if (autoTranslateEnabled && !autoTranslateTargetLanguage) {
+      toast.error("Please enter a target language for auto-translation.");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      if (autoTranslateEnabled) {
+        await api.setChannelAutoTranslate(token, {
+          channel_id: targetChannelId,
+          guild_id: selectedGuild,
+          enabled: true,
+          target_language: autoTranslateTargetLanguage
+        });
+        toast.success("Auto-translation enabled and saved.");
+      } else {
+        await api.deleteChannelAutoTranslate(token, targetChannelId);
+        toast.success("Auto-translation disabled.");
+      }
+      refreshAutoTranslateSetting(); // Refresh current settings after saving
+    } catch (err) {
+      toast.error("Failed to save auto-translation settings.");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
@@ -209,12 +295,15 @@ export default function ChannelSettingsPage() {
         {/* Configuration Tabs */}
         <div className="md:col-span-2 space-y-6">
           <Tabs defaultValue="personalities" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsList className="grid w-full grid-cols-3 h-auto"> {/* Changed grid-cols-2 to grid-cols-3 */}
               <TabsTrigger value="personalities" className="py-2">
                 <Sparkles className="mr-2 h-4 w-4" /> Personalities
               </TabsTrigger>
               <TabsTrigger value="providers" className="py-2">
                 <Cpu className="mr-2 h-4 w-4" /> AI Models
+              </TabsTrigger>
+              <TabsTrigger value="autotranslate" className="py-2"> {/* New tab */}
+                <Globe className="mr-2 h-4 w-4" /> Auto-Translation
               </TabsTrigger>
             </TabsList>
 
@@ -328,9 +417,50 @@ export default function ChannelSettingsPage() {
                 )}
               </div>
             </TabsContent>
+            
+            <TabsContent value="autotranslate" className="space-y-6 mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Auto-Translation Settings</CardTitle>
+                  <CardDescription>Enable automatic translation for messages in this channel.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between space-x-2">
+                    <Label htmlFor="auto-translate-toggle">Enable Auto-Translation</Label>
+                    <Switch
+                      id="auto-translate-toggle"
+                      checked={autoTranslateEnabled}
+                      onCheckedChange={setAutoTranslateEnabled}
+                      disabled={!targetChannelId || isSubmitting}
+                    />
+                  </div>
+                  {autoTranslateEnabled && (
+                    <div className="space-y-2">
+                      <Label htmlFor="target-language-input">Target Language</Label>
+                      <Input
+                        id="target-language-input"
+                        placeholder="e.g. Spanish, Japanese"
+                        value={autoTranslateTargetLanguage}
+                        onChange={(e) => setAutoTranslateTargetLanguage(e.target.value)}
+                        disabled={!targetChannelId || isSubmitting}
+                      />
+                    </div>
+                  )}
+                  <Button 
+                    className="w-full" 
+                    onClick={handleSaveAutoTranslate}
+                    disabled={isSubmitting || !targetChannelId || (autoTranslateEnabled && !autoTranslateTargetLanguage)}
+                  >
+                    {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Save Auto-Translation Settings
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
           </Tabs>
         </div>
       </div>
     </div>
   );
 }
+

@@ -122,6 +122,13 @@ export interface ChannelProviderItem {
   provider: string;
 }
 
+export interface AutoTranslateSetting {
+  channel_id: string;
+  guild_id: string;
+  enabled: boolean;
+  target_language: string | null;
+}
+
 export interface AnalyticsSummary {
   daily_events: Array<{ day: string; count: number }>;
   provider_distribution: Array<{ name: string; value: number }>;
@@ -325,6 +332,23 @@ export const api = {
       token,
     }),
 
+  // Auto-Translation
+  getChannelAutoTranslate: (token: string, channelId: string) =>
+    apiFetch<AutoTranslateSetting>("/api/autotranslate/" + channelId, { token }),
+
+  setChannelAutoTranslate: (token: string, data: AutoTranslateSetting) =>
+    apiFetch<{ status: string }>("/api/autotranslate", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteChannelAutoTranslate: (token: string, channelId: string) =>
+    apiFetch<{ status: string }>("/api/autotranslate/" + channelId, {
+      method: "DELETE",
+      token,
+    }),
+
   // Analytics
   getAnalyticsSummary: (token: string, days: number = 7) =>
     apiFetch<AnalyticsSummary>(`/api/analytics/summary?days=${days}`, { token }),
@@ -353,10 +377,10 @@ export const api = {
   getGuildConfig: (token: string, guildId: string) =>
     apiFetch<{ config: Record<string, string> }>(`/api/guilds/${guildId}/config`, { token }),
 
-  updateGuildConfig: (token: string, guildId: string, values: Record<string, string>) =>
-    apiFetch<{ status: string }>(`/api/guilds/${guildId}/config`, {
-      method: "PUT",
-      body: JSON.stringify({ values }),
-      token,
-    }),
-};
+      updateGuildConfig: (token: string, guildId: string, values: Record<string, string>) =>
+      apiFetch<{ status: string }>(`/api/guilds/${guildId}/config`, {
+        method: "PUT",
+        body: JSON.stringify({ values }),
+        token,
+      }),
+  };

@@ -6,7 +6,7 @@ import datetime
 import hashlib
 import secrets
 
-JWT_SECRET = os.getenv("JWT_SECRET", "sparksage-dev-secret-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET", "sparksage-dev-secret-change-me-must-be-32-chars-long")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24
 

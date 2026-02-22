@@ -60,6 +60,7 @@ MODERATION_SENSITIVITY = os.getenv("MODERATION_SENSITIVITY", "medium")
 
 # Translation settings
 TRANSLATE_ENABLED = os.getenv("TRANSLATE_ENABLED", "true").lower() == "true"
+AUTO_TRANSLATE_ENABLED = os.getenv("AUTO_TRANSLATE_ENABLED", "false").lower() == "true"
 
 # Rate Limiting settings
 RATE_LIMIT_USER = int(os.getenv("RATE_LIMIT_USER", "5")) # requests per minute
@@ -179,6 +180,7 @@ def reload_from_db(db_config: dict[str, str]):
         "MOD_LOG_CHANNEL_ID": str,
         "MODERATION_SENSITIVITY": str,
         "TRANSLATE_ENABLED": lambda v: str(v).lower() == "true",
+        "AUTO_TRANSLATE_ENABLED": lambda v: str(v).lower() == "true",
         "RATE_LIMIT_USER": int,
         "RATE_LIMIT_GUILD": int,
         "DISABLED_PROVIDERS": str,

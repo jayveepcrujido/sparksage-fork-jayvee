@@ -32,7 +32,7 @@ class ModerationCog(commands.Cog):
 
         try:
             # Using providers.chat directly for structured output
-            response_text, provider, tokens, latency = providers.chat(
+            response_text, provider, total_tokens, latency, input_tokens, output_tokens = providers.chat(
                 messages=[{"role": "user", "content": user_message}],
                 system_prompt=system_prompt
             )
@@ -46,7 +46,7 @@ class ModerationCog(commands.Cog):
                 channel_id=str(message.channel.id),
                 user_id=str(message.author.id),
                 provider=provider,
-                tokens_used=tokens,
+                tokens_used=total_tokens,
                 latency_ms=latency
             )
             

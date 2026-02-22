@@ -103,6 +103,13 @@ async def init_db():
             provider TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS channel_autotranslate_settings (
+            channel_id TEXT PRIMARY KEY,
+            guild_id TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            target_language TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS analytics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_type  TEXT NOT NULL,
@@ -666,6 +673,36 @@ async def list_channel_providers(guild_id: str | None = None) -> list[dict]:
         cursor = await db.execute("SELECT * FROM channel_providers")
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
+
+
+# --- Channel Auto-translate helpers ---
+
+
+async def get_channel_autotranslate_setting(channel_id: str) -> tuple[str, bool, str | None] | None:
+    """Get a channel-specific auto-translate setting."""
+    db = await get_db()
+    cursor = await db.execute("SELECT guild_id, enabled, target_language FROM channel_autotranslate_settings WHERE channel_id = ?", (channel_id,))
+    row = await cursor.fetchone()
+    if row:
+        return row["guild_id"], bool(row["enabled"]), row["target_language"]
+    return None
+
+
+async def set_channel_autotranslate_setting(channel_id: str, guild_id: str, enabled: bool, target_language: str | None = None):
+    """Set a channel-specific auto-translate setting."""
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO channel_autotranslate_settings (channel_id, guild_id, enabled, target_language) VALUES (?, ?, ?, ?) ON CONFLICT(channel_id) DO UPDATE SET enabled = excluded.enabled, target_language = excluded.target_language",
+        (channel_id, guild_id, int(enabled), target_language),
+    )
+    await db.commit()
+
+
+async def delete_channel_autotranslate_setting(channel_id: str):
+    """Delete a channel-specific auto-translate setting."""
+    db = await get_db()
+    await db.execute("DELETE FROM channel_autotranslate_settings WHERE channel_id = ?", (channel_id,))
+    await db.commit()
 
 
 # --- Analytics helpers ---

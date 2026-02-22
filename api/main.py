@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import auth, config, providers, bot, conversations, wizard, faq, permissions, guilds, prompts, channel_providers, analytics, plugins
+from api.routes import auth, config, providers, bot, conversations, wizard, faq, permissions, guilds, prompts, channel_providers, analytics, plugins, autotranslate
 import db
 
 
@@ -37,9 +37,16 @@ def create_app() -> FastAPI:
     app.include_router(channel_providers.router, prefix="/api/channel-providers", tags=["channel-providers"])
     app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
     app.include_router(plugins.router, prefix="/api/plugins", tags=["plugins"])
+    app.include_router(autotranslate.router, prefix="/api/autotranslate", tags=["autotranslate"]) # Add autotranslate router
 
     @app.get("/api/health")
     async def health():
         return {"status": "ok"}
+
+    @app.get("/api/debug/routes")
+    async def debug_routes():
+        routes_list = [{"path": route.path, "name": route.name, "methods": list(route.methods)}
+                       for route in app.routes if hasattr(route, "path") and hasattr(route, "name") and hasattr(route, "methods")]
+        return {"routes": routes_list}
 
     return app
