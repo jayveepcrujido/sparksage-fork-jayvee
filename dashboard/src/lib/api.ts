@@ -23,7 +23,7 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(body.detail || `API error: ${res.status}`);
+    throw new Error(body.detail || res.statusText || `API error: ${res.status}`);
   }
 
   return res.json();
@@ -170,6 +170,10 @@ export interface RoleItem {
   color: string;
 }
 
+export interface CommandsResponse {
+  commands: string[];
+}
+
 export const api = {
   // Auth
   login: (password: string) =>
@@ -297,6 +301,9 @@ export const api = {
 
   getRoles: (token: string, guildId: string) =>
     apiFetch<{ roles: RoleItem[] }>(`/api/permissions/roles/${guildId}`, { token }),
+
+  getCommands: (token: string) =>
+    apiFetch<CommandsResponse>("/api/permissions/commands", { token }),
 
   // Prompts
   getPrompts: (token: string, guildId?: string) =>
