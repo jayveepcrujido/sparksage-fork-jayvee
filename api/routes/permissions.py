@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+import asyncio
 from pydantic import BaseModel
 from api.deps import get_current_user
+from bot import bot, get_all_command_names
 import db
 
 router = APIRouter()
@@ -63,3 +65,17 @@ async def list_roles(guild_id: str, user: dict = Depends(get_current_user)):
             print(f"Async fetch for guild {guild_id} failed: {e}")
             
     return {"roles": roles}
+
+
+@router.get("/commands")
+async def list_commands():
+    """Return a list of all registered slash command names."""
+    if not bot.is_ready():
+        raise HTTPException(status_code=503, detail="Bot is not ready yet.")
+    
+    try:
+        commands = await get_all_command_names()
+        return {"commands": commands}
+    except Exception as e:
+        print(f"Failed to fetch commands from bot: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch commands from bot.")

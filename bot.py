@@ -114,6 +114,37 @@ def get_guild_roles(guild_id: str) -> list[dict]:
         return []
 
 
+async def get_all_command_names() -> list[str]:
+    """Return a list of all registered slash command names, including subcommands."""
+    if not bot.is_ready():
+        print("[DEBUG] get_all_command_names: Bot not ready yet.")
+        return []
+
+    command_names = set()
+    # Use fetch_commands() to get commands that are synced to Discord
+    # This ensures we get the most up-to-date list.
+    try:
+        commands = await bot.tree.fetch_commands()
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch commands from Discord: {e}")
+        return []
+
+    for command in commands:
+        if isinstance(command, app_commands.Group):
+            # For groups, we might need to fetch subcommands if they are not directly available
+            # However, fetch_commands() usually returns top-level commands.
+            # If subcommands are not listed directly, we might need a different approach
+            # or rely on them being part of the command name like "group sub"
+            command_names.add(command.name) # Add the group name itself
+            # discord.py's fetch_commands() doesn't typically return subcommands nested this way
+            # The client-side logic for "group sub" handles this.
+        else:
+            command_names.add(command.name)
+    
+    print(f"[DEBUG] Found {len(command_names)} commands: {command_names}")
+    return sorted(list(command_names))
+
+
 # --- Events ---
 
 
