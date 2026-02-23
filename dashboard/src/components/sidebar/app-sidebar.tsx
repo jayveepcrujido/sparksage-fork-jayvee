@@ -42,6 +42,7 @@ const NAV_ITEMS = [
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
   { title: "Onboarding", href: "/dashboard/onboarding", icon: UserPlus },
   { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
+  { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
   { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
 ];
 

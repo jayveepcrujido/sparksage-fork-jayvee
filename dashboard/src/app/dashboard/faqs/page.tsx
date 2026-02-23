@@ -28,11 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-interface FAQTabProps {
-  guildId: string;
-}
-
-export function FAQTab({ guildId }: FAQTabProps) {
+export default function FAQsPage() {
   const { data: session } = useSession();
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +36,7 @@ export function FAQTab({ guildId }: FAQTabProps) {
   
   // New FAQ form state
   const [newFaq, setNewFaq] = useState({
-    guild_id: guildId,
+    guild_id: "",
     question: "",
     answer: "",
     match_keywords: "",
@@ -52,8 +48,7 @@ export function FAQTab({ guildId }: FAQTabProps) {
     if (!token) return;
     try {
       const result = await api.getFAQs(token);
-      // Filter FAQs by guildId
-      setFaqs(result.faqs.filter(faq => faq.guild_id === guildId));
+      setFaqs(result.faqs);
     } catch {
       toast.error("Failed to load FAQs");
     } finally {
@@ -62,10 +57,8 @@ export function FAQTab({ guildId }: FAQTabProps) {
   }
 
   useEffect(() => {
-    // Reset newFaq.guild_id when guildId prop changes
-    setNewFaq((prev) => ({ ...prev, guild_id: guildId }));
     load();
-  }, [token, guildId]); // Added guildId to dependency array
+  }, [token]);
 
   async function handleAdd() {
     if (!token) return;
@@ -78,7 +71,7 @@ export function FAQTab({ guildId }: FAQTabProps) {
       await api.createFAQ(token, newFaq);
       toast.success("FAQ created successfully");
       setOpen(false);
-      setNewFaq({ guild_id: guildId, question: "", answer: "", match_keywords: "" });
+      setNewFaq({ guild_id: "", question: "", answer: "", match_keywords: "" });
       await load();
     } catch (err) {
       toast.error("Failed to create FAQ");
@@ -107,7 +100,7 @@ export function FAQTab({ guildId }: FAQTabProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">FAQ Management for Guild {guildId}</h1>
+        <h1 className="text-2xl font-bold text-foreground">FAQ Management</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -129,7 +122,6 @@ export function FAQTab({ guildId }: FAQTabProps) {
                   placeholder="e.g. 1234567890"
                   value={newFaq.guild_id}
                   onChange={(e) => setNewFaq({ ...newFaq, guild_id: e.target.value })}
-                  disabled // Disable guild_id input as it's passed via props
                 />
               </div>
               <div className="grid gap-2">
@@ -170,22 +162,23 @@ export function FAQTab({ guildId }: FAQTabProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>FAQ List</CardTitle>
+          <CardTitle>Global FAQ List</CardTitle>
           <CardDescription>
-            These automated responses will trigger when keywords are detected in messages for this guild.
+            These automated responses will trigger when keywords are detected in messages.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {faqs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <MessageCircle className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-              <p className="text-muted-foreground">No FAQs configured yet for this guild.</p>
+              <p className="text-muted-foreground">No FAQs configured yet.</p>
             </div>
           ) : (
             <div className="relative overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Guild ID</TableHead>
                     <TableHead>Question</TableHead>
                     <TableHead>Keywords</TableHead>
                     <TableHead className="text-right">Used</TableHead>
@@ -195,6 +188,7 @@ export function FAQTab({ guildId }: FAQTabProps) {
                 <TableBody>
                   {faqs.map((faq) => (
                     <TableRow key={faq.id}>
+                      <TableCell className="font-mono text-xs whitespace-nowrap">{faq.guild_id}</TableCell>
                       <TableCell className="font-medium whitespace-nowrap">{faq.question}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 min-w-[150px]">

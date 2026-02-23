@@ -236,7 +236,7 @@ export const api = {
     apiFetch<{ channels: ChannelItem[] }>("/api/conversations", { token }),
 
   getConversation: (token: string, channelId: string) =>
-    apiFetch<{ channel_id: string; guild_id: string; messages: MessageItem[] }>(
+    apiFetch<{ channel_id: string; messages: MessageItem[] }>(
       `/api/conversations/${channelId}`,
       { token }
     ),
