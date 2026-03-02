@@ -4,7 +4,10 @@ interface FetchOptions extends RequestInit {
   token?: string;
 }
 
-async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
+async function apiFetch<T>(
+  path: string,
+  options: FetchOptions = {},
+): Promise<T> {
   const { token, headers: customHeaders, ...rest } = options;
 
   const headers: Record<string, string> = {
@@ -23,7 +26,9 @@ async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T>
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(body.detail || res.statusText || `API error: ${res.status}`);
+    throw new Error(
+      body.detail || res.statusText || `API error: ${res.status}`,
+    );
   }
 
   return res.json();
@@ -47,6 +52,7 @@ export interface ProvidersResponse {
 
 export interface ChannelItem {
   channel_id: string;
+  guild_id?: string;
   message_count: number;
   last_active: string;
   has_code_review: boolean;
@@ -238,7 +244,35 @@ export const api = {
   getConversation: (token: string, channelId: string) =>
     apiFetch<{ channel_id: string; messages: MessageItem[] }>(
       `/api/conversations/${channelId}`,
-      { token }
+      { token },
+    ),
+
+  searchConversations: (
+    token: string,
+    q: string,
+    guildId?: string,
+    limit: number = 100,
+  ) =>
+    apiFetch<{ query: string; results: MessageItem[] }>(
+      `/api/conversations/search?q=${encodeURIComponent(q)}` +
+        (guildId ? `&guild_id=${encodeURIComponent(guildId)}` : "") +
+        `&limit=${limit}`,
+      { token },
+    ),
+
+  exportConversation: (
+    token: string,
+    channelId: string,
+    format: "json" | "pdf" = "json",
+  ) =>
+    apiFetch<any>(`/api/conversations/export/${channelId}?format=${format}`, {
+      token,
+    }),
+
+  tagConversation: (token: string, channelId: string) =>
+    apiFetch<{ channel_id: string; topic: string; provider: string }>(
+      `/api/conversations/tag/${channelId}`,
+      { token, method: "POST" },
     ),
 
   deleteConversation: (token: string, channelId: string) =>
@@ -249,9 +283,20 @@ export const api = {
 
   // FAQs
   getFAQs: (token: string, guildId?: string) =>
-    apiFetch<{ faqs: FAQItem[] }>(`/api/faqs${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+    apiFetch<{ faqs: FAQItem[] }>(
+      `/api/faqs${guildId ? `?guild_id=${guildId}` : ""}`,
+      { token },
+    ),
 
-  createFAQ: (token: string, data: { guild_id: string; question: string; answer: string; match_keywords: string }) =>
+  createFAQ: (
+    token: string,
+    data: {
+      guild_id: string;
+      question: string;
+      answer: string;
+      match_keywords: string;
+    },
+  ) =>
     apiFetch<{ status: string }>("/api/faqs", {
       method: "POST",
       body: JSON.stringify(data),
@@ -266,7 +311,11 @@ export const api = {
 
   // Wizard
   getWizardStatus: (token: string) =>
-    apiFetch<{ completed: boolean; current_step: number; data: Record<string, any> }>("/api/wizard/status", { token }),
+    apiFetch<{
+      completed: boolean;
+      current_step: number;
+      data: Record<string, any>;
+    }>("/api/wizard/status", { token }),
 
   updateWizardStep: (token: string, step: number, data: any) =>
     apiFetch<{ status: string }>("/api/wizard/step", {
@@ -284,7 +333,10 @@ export const api = {
 
   // Permissions
   getPermissions: (token: string, guildId?: string) =>
-    apiFetch<{ permissions: PermissionItem[] }>(`/api/permissions${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+    apiFetch<{ permissions: PermissionItem[] }>(
+      `/api/permissions${guildId ? `?guild_id=${guildId}` : ""}`,
+      { token },
+    ),
 
   createPermission: (token: string, data: PermissionItem) =>
     apiFetch<{ status: string }>("/api/permissions", {
@@ -293,21 +345,34 @@ export const api = {
       token,
     }),
 
-  deletePermission: (token: string, commandName: string, guildId: string, roleId: string) =>
-    apiFetch<{ status: string }>(`/api/permissions/${commandName}/${guildId}/${roleId}`, {
-      method: "DELETE",
-      token,
-    }),
+  deletePermission: (
+    token: string,
+    commandName: string,
+    guildId: string,
+    roleId: string,
+  ) =>
+    apiFetch<{ status: string }>(
+      `/api/permissions/${commandName}/${guildId}/${roleId}`,
+      {
+        method: "DELETE",
+        token,
+      },
+    ),
 
   getRoles: (token: string, guildId: string) =>
-    apiFetch<{ roles: RoleItem[] }>(`/api/permissions/roles/${guildId}`, { token }),
+    apiFetch<{ roles: RoleItem[] }>(`/api/permissions/roles/${guildId}`, {
+      token,
+    }),
 
   getCommands: (token: string) =>
     apiFetch<CommandsResponse>("/api/permissions/commands", { token }),
 
   // Prompts
   getPrompts: (token: string, guildId?: string) =>
-    apiFetch<{ prompts: ChannelPrompt[] }>(`/api/prompts${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+    apiFetch<{ prompts: ChannelPrompt[] }>(
+      `/api/prompts${guildId ? `?guild_id=${guildId}` : ""}`,
+      { token },
+    ),
 
   setPrompt: (token: string, data: ChannelPrompt) =>
     apiFetch<{ status: string }>("/api/prompts", {
@@ -324,7 +389,10 @@ export const api = {
 
   // Channel Providers
   getChannelProviders: (token: string, guildId?: string) =>
-    apiFetch<{ channel_providers: ChannelProviderItem[] }>(`/api/channel-providers${guildId ? `?guild_id=${guildId}` : ""}`, { token }),
+    apiFetch<{ channel_providers: ChannelProviderItem[] }>(
+      `/api/channel-providers${guildId ? `?guild_id=${guildId}` : ""}`,
+      { token },
+    ),
 
   setChannelProvider: (token: string, data: ChannelProviderItem) =>
     apiFetch<{ status: string }>("/api/channel-providers", {
@@ -341,7 +409,9 @@ export const api = {
 
   // Auto-Translation
   getChannelAutoTranslate: (token: string, channelId: string) =>
-    apiFetch<AutoTranslateSetting>("/api/autotranslate/" + channelId, { token }),
+    apiFetch<AutoTranslateSetting>("/api/autotranslate/" + channelId, {
+      token,
+    }),
 
   setChannelAutoTranslate: (token: string, data: AutoTranslateSetting) =>
     apiFetch<{ status: string }>("/api/autotranslate", {
@@ -358,10 +428,15 @@ export const api = {
 
   // Analytics
   getAnalyticsSummary: (token: string, days: number = 7) =>
-    apiFetch<AnalyticsSummary>(`/api/analytics/summary?days=${days}`, { token }),
+    apiFetch<AnalyticsSummary>(`/api/analytics/summary?days=${days}`, {
+      token,
+    }),
 
   getAnalyticsHistory: (token: string, limit: number = 100) =>
-    apiFetch<{ history: AnalyticsEvent[] }>(`/api/analytics/history?limit=${limit}`, { token }),
+    apiFetch<{ history: AnalyticsEvent[] }>(
+      `/api/analytics/history?limit=${limit}`,
+      { token },
+    ),
 
   // Plugins
   getPlugins: (token: string) =>
@@ -382,12 +457,19 @@ export const api = {
 
   // Guild Config
   getGuildConfig: (token: string, guildId: string) =>
-    apiFetch<{ config: Record<string, string> }>(`/api/guilds/${guildId}/config`, { token }),
+    apiFetch<{ config: Record<string, string> }>(
+      `/api/guilds/${guildId}/config`,
+      { token },
+    ),
 
-      updateGuildConfig: (token: string, guildId: string, values: Record<string, string>) =>
-      apiFetch<{ status: string }>(`/api/guilds/${guildId}/config`, {
-        method: "PUT",
-        body: JSON.stringify({ values }),
-        token,
-      }),
-  };
+  updateGuildConfig: (
+    token: string,
+    guildId: string,
+    values: Record<string, string>,
+  ) =>
+    apiFetch<{ status: string }>(`/api/guilds/${guildId}/config`, {
+      method: "PUT",
+      body: JSON.stringify({ values }),
+      token,
+    }),
+};

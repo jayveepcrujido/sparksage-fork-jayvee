@@ -61,6 +61,41 @@ def reload_clients():
     FALLBACK_ORDER = _build_fallback_order()
 
 
+def _is_simple_query(text: str) -> bool:
+    """Rudimentary heuristic to classify a message as a simple query.
+
+    Currently based on word count and the presence of a question mark.  This
+    is intentionally lightweight so it can run on every request without
+    external dependencies.  The threshold may be tuned later or replaced with
+    a more sophisticated classifier.
+    """
+    if not text or not text.strip():
+        return False
+    words = text.strip().split()
+    # simple if fewer than 6 words and does not look like a multi‑sentence prompt
+    if len(words) < 6 and text.count("?") <= 1:
+        return True
+    return False
+
+
+def choose_provider_for_query(message: str) -> str | None:
+    """Return a low‑cost provider for simple messages, or ``None`` if no
+    special routing is needed.
+
+    The priority is the order defined by ``config.FREE_FALLBACK_CHAIN``.  The
+    caller can pass the result as ``override_provider`` to ``chat``.  If the
+    message is not considered simple or no free providers are available this
+    returns ``None``.
+    """
+    if not _is_simple_query(message):
+        return None
+
+    for name in config.FREE_FALLBACK_CHAIN:
+        if name in _clients:
+            return name
+    return None
+
+
 def get_available_providers() -> list[str]:
     """Return list of provider names that have valid API keys and are enabled."""
     return [

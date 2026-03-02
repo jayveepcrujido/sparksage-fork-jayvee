@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Zap } from "lucide-react";
@@ -16,6 +16,11 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,6 +46,29 @@ function LoginForm() {
     }
   }
 
+  if (!mounted) {
+    return (
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Zap className="h-6 w-6" />
+          </div>
+          <CardTitle className="text-2xl">SparkSage</CardTitle>
+          <CardDescription>Sign in to the admin dashboard</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">Admin Password</Label>
+              <div className="h-9 rounded-md border border-input bg-transparent" />
+            </div>
+            <div className="h-9 rounded-md bg-primary" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
@@ -61,6 +89,7 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              suppressHydrationWarning
             />
           </div>
           {error && (

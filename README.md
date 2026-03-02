@@ -10,6 +10,8 @@ SparkSage is a versatile, AI-powered Discord bot designed to bring the power of 
 - **Plugin System:** Extend the bot's functionality with custom plugins.
 - **Conversation Summaries:** Get summaries of channel conversations on demand.
 - **Code Reviews:** Ask the bot to review code snippets.
+- **Conversation Search & Export:** Search past chats, export as JSON or PDF, and auto‑tag topics.
+- **Cost‑aware model routing:** simple questions are automatically sent to free providers for faster, cheaper responses.
 
 ## Prerequisites
 
@@ -19,26 +21,29 @@ SparkSage is a versatile, AI-powered Discord bot designed to bring the power of 
 ## Installation
 
 1.  **Clone the repository:**
+
     ```bash
     git clone https://github.com/your-repo/sparksage.git
     cd sparksage
     ```
 
 2.  **Install Python dependencies:**
+
     ```bash
     pip install -r requirements.txt
     ```
 
 3.  **Set up the configuration file:**
     Copy the example environment file:
+
     ```bash
     cp .env.example .env
     ```
-    Now, you **must** edit the `.env` file. The most critical step is to add your Discord bot token.
 
-    -   Open the `.env` file in a text editor.
-    -   Find the line `DISCORD_TOKEN=your_discord_bot_token_here`.
-    -   Replace `your_discord_bot_token_here` with your actual bot token from the [Discord Developer Portal](https://discord.com/developers/applications).
+    Now, you **must** edit the `.env` file. The most critical step is to add your Discord bot token.
+    - Open the `.env` file in a text editor.
+    - Find the line `DISCORD_TOKEN=your_discord_bot_token_here`.
+    - Replace `your_discord_bot_token_here` with your actual bot token from the [Discord Developer Portal](https://discord.com/developers/applications).
 
     You should also set a new random string for `JWT_SECRET` for security.
 
@@ -54,6 +59,7 @@ You need to run two processes: the Discord bot and the dashboard API.
 
 1.  **Run the Discord Bot:**
     In the root directory of the project, run:
+
     ```bash
     python run.py
     ```

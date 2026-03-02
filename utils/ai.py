@@ -23,7 +23,15 @@ async def ask_ai(
     user_id: int | None = None,
     event_type: str = "mention"
 ) -> tuple[str, str]:
-    """Send a message to AI and return (response, provider_name)."""
+    """Send a message to AI and return (response, provider_name).
+
+    The implementation includes automatic routing: very short or trivial
+    user messages are tagged as "simple" and the request is forwarded to a
+    free provider (Gemini/Groq/OpenRouter) whenever one is available.  This
+    behavior lowers costs and improves latency for everyday queries.  A
+    channel-specific provider override (from the database) will take
+    precedence over the automatic choice.
+    """
     # Skip rate limiting for internal system calls (like digest)
     if channel_id != 0 and user_id:
         is_limited, reason = limiter.is_rate_limited(str(user_id), str(guild_id) if guild_id else None)
@@ -57,14 +65,24 @@ async def ask_ai(
     # Check for channel-specific provider
     preferred_provider = await database.get_channel_provider(str(channel_id))
     
+    # Automatic routing: if the user message is very simple we prefer a free
+    # provider regardless of the configured primary, unless a channel override
+    # is explicitly set.  This keeps costs down for trivial queries.
+    auto_provider = None
+    if not preferred_provider:
+        auto_provider = providers.choose_provider_for_query(message)
+
     # Debug logging
     prompt_source = "CUSTOM" if (channel_prompt or system_prompt) else "GLOBAL"
-    prov_source = f"PREFERRED: {preferred_provider}" if preferred_provider else "GLOBAL primary"
+    prov_source = (
+        f"PREFERRED: {preferred_provider}" if preferred_provider
+        else (f"AUTO: {auto_provider}" if auto_provider else "GLOBAL primary")
+    )
     print(f"[AI] Channel {channel_id} using {prompt_source} prompt and {prov_source}")
 
     try:
         response, provider_name, total_tokens, latency, input_tokens, output_tokens = providers.chat(
-            history, sys_prompt, override_provider=preferred_provider
+            history, sys_prompt, override_provider=preferred_provider or auto_provider
         )
         
         # Calculate cost

@@ -48,3 +48,23 @@ async def test_analytics_logging():
     summary = await db.get_analytics_summary(days=1)
     assert summary["total_cost"] == 0.001
     assert any(p["name"] == "groq" for p in summary["provider_distribution"])
+
+
+@pytest.mark.asyncio
+async def test_search_and_topic():
+    # add some messages across two channels and guilds
+    await db.add_message("chan1", "user", "hello world", guild_id="g1")
+    await db.add_message("chan1", "assistant", "world domination plans", guild_id="g1")
+    await db.add_message("chan2", "user", "kubernetes cluster setup", guild_id="g2")
+    await db.add_message("chan2", "assistant", "follow best practices", guild_id="g2")
+
+    results = await db.search_messages("world")
+    assert any(m["content"].startswith("hello world") for m in results)
+
+    results_g1 = await db.search_messages("world", guild_id="g1")
+    assert all(m["channel_id"] == "chan1" for m in results_g1)
+
+    # topic tag operations
+    assert await db.get_channel_topic("chan1") is None
+    await db.set_channel_topic("chan1", "greeting")
+    assert await db.get_channel_topic("chan1") == "greeting"
