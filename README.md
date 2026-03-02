@@ -10,7 +10,8 @@ SparkSage is a versatile, AI-powered Discord bot designed to bring the power of 
 - **Plugin System:** Extend the bot's functionality with custom plugins.
 - **Conversation Summaries:** Get summaries of channel conversations on demand.
 - **Code Reviews:** Ask the bot to review code snippets.
-- **Conversation Search & Export:** Search past chats, export as JSON or PDF, and auto‑tag topics.
+- **Conversation Search & Export:** Search past chats, export as JSON or PDF (buttons available on the conversation detail page and channel list), and auto‑tag topics.
+- **Channel Name Display:** Conversations dashboard now shows the Discord channel name alongside the ID for easier browsing.
 - **Cost‑aware model routing:** simple questions are automatically sent to free providers for faster, cheaper responses.
 
 ## Prerequisites

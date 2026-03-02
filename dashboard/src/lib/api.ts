@@ -52,6 +52,7 @@ export interface ProvidersResponse {
 
 export interface ChannelItem {
   channel_id: string;
+  channel_name?: string | null;
   guild_id?: string;
   message_count: number;
   last_active: string;
@@ -242,10 +243,11 @@ export const api = {
     apiFetch<{ channels: ChannelItem[] }>("/api/conversations", { token }),
 
   getConversation: (token: string, channelId: string) =>
-    apiFetch<{ channel_id: string; messages: MessageItem[] }>(
-      `/api/conversations/${channelId}`,
-      { token },
-    ),
+    apiFetch<{
+      channel_id: string;
+      channel_name?: string | null;
+      messages: MessageItem[];
+    }>(`/api/conversations/${channelId}`, { token }),
 
   searchConversations: (
     token: string,
@@ -260,14 +262,33 @@ export const api = {
       { token },
     ),
 
-  exportConversation: (
+  exportConversation: async (
     token: string,
     channelId: string,
     format: "json" | "pdf" = "json",
-  ) =>
-    apiFetch<any>(`/api/conversations/export/${channelId}?format=${format}`, {
-      token,
-    }),
+  ) => {
+    // apiFetch assumes JSON responses, so handle PDF downloads manually
+    const url = `${API_URL}/api/conversations/export/${channelId}?format=${format}`;
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(
+        body.detail || res.statusText || `API error: ${res.status}`,
+      );
+    }
+
+    if (format === "json") {
+      return res.json();
+    }
+
+    // return blob for PDF so caller can download it
+    return res.blob();
+  },
 
   tagConversation: (token: string, channelId: string) =>
     apiFetch<{ channel_id: string; topic: string; provider: string }>(

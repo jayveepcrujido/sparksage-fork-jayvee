@@ -9,7 +9,16 @@ router = APIRouter()
 
 @router.get("")
 async def list_conversations(user: dict = Depends(get_current_user)):
+    # fetch stored channel stats
     channels = await db.list_channels()
+
+    # map ids → names using bot helper (used elsewhere for Channel Tuning)
+    from bot import get_all_channels
+    name_map = {c["id"]: c.get("name") for c in get_all_channels()}
+
+    for ch in channels:
+        ch["channel_name"] = name_map.get(ch.get("channel_id"))
+
     return {"channels": channels}
 
 
@@ -74,7 +83,16 @@ async def tag_conversation(channel_id: str, user: dict = Depends(get_current_use
 @router.get("/{channel_id}")
 async def get_conversation(channel_id: str, user: dict = Depends(get_current_user)):
     messages = await db.get_messages(channel_id, limit=100)
-    return {"channel_id": channel_id, "messages": messages}
+
+    # also attempt to resolve channel name using the same helper
+    from bot import get_all_channels
+    channel_name = None
+    for c in get_all_channels():
+        if c.get("id") == channel_id:
+            channel_name = c.get("name")
+            break
+
+    return {"channel_id": channel_id, "channel_name": channel_name, "messages": messages}
 
 
 @router.delete("/{channel_id}")

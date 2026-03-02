@@ -78,6 +78,34 @@ export default function ConversationsPage() {
     }
   }
 
+  async function handleExport(channelId: string, format: "json" | "pdf") {
+    if (!token) return;
+    try {
+      const result = await api.exportConversation(token, channelId, format);
+      if (format === "json") {
+        const blob = new Blob([JSON.stringify(result, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `conversation-${channelId}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const blob = result as Blob;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `conversation-${channelId}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Export failed");
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -136,30 +164,30 @@ export default function ConversationsPage() {
           </Button>
         </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Messages
-            {!searching && searchResults.length > 0 && (
-              <span className="ml-2 text-sm font-normal text-muted-foreground">
-                ({searchResults.length})
-              </span>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Messages
+              {!searching && searchResults.length > 0 && (
+                <span className="ml-2 text-sm font-normal text-muted-foreground">
+                  ({searchResults.length})
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {searching ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <MessageList messages={searchResults} />
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {searching ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <MessageList messages={searchResults} />
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const codeReviewChannels = channels.filter((c) => c.has_code_review);
 
@@ -209,7 +237,11 @@ export default function ConversationsPage() {
               <CardTitle className="text-base">All Channels</CardTitle>
             </CardHeader>
             <CardContent>
-              <ChannelList channels={channels} onDelete={handleDelete} />
+              <ChannelList
+                channels={channels}
+                onDelete={handleDelete}
+                onExport={token ? handleExport : undefined}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -223,6 +255,7 @@ export default function ConversationsPage() {
               <ChannelList
                 channels={codeReviewChannels}
                 onDelete={handleDelete}
+                onExport={token ? handleExport : undefined}
               />
             </CardContent>
           </Card>
