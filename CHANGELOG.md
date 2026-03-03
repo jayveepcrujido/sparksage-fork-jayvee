@@ -1,8 +1,23 @@
 # Changelog
 
+## [0.3.2] - 2026-02-26
+
+### Added
+
+- **Conversation search & export** — new `/api/conversations/search` and `/export` endpoints (JSON/PDF) plus dashboard UI updates to find and download past chats.
+- **Guild ID tracking** — conversations now record `guild_id` and support guild-scoped searches.
+- **Topic tagging** — AI-generated topic tags for channels with new `/api/conversations/tag`.
+
+## [0.3.1] - 2026-02-26
+
+### Added
+
+- **Intelligent model routing** — simple user queries are automatically routed to a free provider (Gemini/Groq/OpenRouter) to reduce cost and latency.
+
 ## [0.3.0] - 2026-02-19
 
 ### Added
+
 - **Admin Dashboard** — Next.js 16 + shadcn/ui web interface for managing SparkSage
 - **Setup Wizard** — 4-step guided setup on first login (Discord token → Providers → Bot settings → Review). Skippable and accessible from sidebar nav.
 - **FastAPI Backend** — 19 REST API endpoints for dashboard communication
@@ -19,12 +34,13 @@
 - **Bot Status API** — `bot.get_bot_status()` exposes online state, latency, guilds to dashboard
 
 ### Changed
+
 - **`bot.py`** — conversations now stored in SQLite (previously in-memory), added `get_bot_status()`
 - **`config.py`** — added dashboard env vars, `reload_from_db()`, `_build_providers()` for dynamic rebuilds
 - **`providers.py`** — added `reload_clients()`, `test_provider()`, extracted `_build_clients()`
 - **`requirements.txt`** — added fastapi, uvicorn, aiosqlite, pyjwt, python-multipart, httpx
 - **`.env.example`** — added DASHBOARD section (port, password, Discord OAuth, JWT secret, DB path)
-- **`.gitignore`** — added *.db, dashboard/node_modules/, dashboard/.next/, dashboard/.env.local
+- **`.gitignore`** — added \*.db, dashboard/node_modules/, dashboard/.next/, dashboard/.env.local
 - **`docs/PRODUCT_DESIGN.md`** — full rewrite with dashboard architecture, API endpoints, database schema, updated roadmap
 
 ### Architecture
@@ -44,26 +60,27 @@ After (v0.3):
 
 ### Files Added
 
-| File | Description |
-|------|-------------|
-| `db.py` | SQLite database layer (aiosqlite) |
-| `run.py` | Unified launcher (bot + FastAPI) |
-| `api/main.py` | FastAPI app factory with CORS |
-| `api/auth.py` | JWT + password auth utilities |
-| `api/deps.py` | Dependency injection |
-| `api/routes/auth.py` | Login + user endpoints |
-| `api/routes/config.py` | Config CRUD endpoints |
-| `api/routes/providers.py` | Provider management + test endpoints |
-| `api/routes/bot.py` | Bot status endpoint |
-| `api/routes/conversations.py` | Conversation CRUD endpoints |
-| `api/routes/wizard.py` | Setup wizard endpoints |
-| `dashboard/` | Full Next.js + shadcn/ui admin dashboard (23 UI components, 4 wizard steps, 4 dashboard pages, auth, sidebar nav) |
+| File                          | Description                                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `db.py`                       | SQLite database layer (aiosqlite)                                                                                 |
+| `run.py`                      | Unified launcher (bot + FastAPI)                                                                                  |
+| `api/main.py`                 | FastAPI app factory with CORS                                                                                     |
+| `api/auth.py`                 | JWT + password auth utilities                                                                                     |
+| `api/deps.py`                 | Dependency injection                                                                                              |
+| `api/routes/auth.py`          | Login + user endpoints                                                                                            |
+| `api/routes/config.py`        | Config CRUD endpoints                                                                                             |
+| `api/routes/providers.py`     | Provider management + test endpoints                                                                              |
+| `api/routes/bot.py`           | Bot status endpoint                                                                                               |
+| `api/routes/conversations.py` | Conversation CRUD endpoints                                                                                       |
+| `api/routes/wizard.py`        | Setup wizard endpoints                                                                                            |
+| `dashboard/`                  | Full Next.js + shadcn/ui admin dashboard (23 UI components, 4 wizard steps, 4 dashboard pages, auth, sidebar nav) |
 
 ---
 
 ## [0.2.0] - 2026-02-18
 
 ### Added
+
 - **Multi-provider fallback system** (`providers.py`) — automatic failover across free AI providers
 - **Free fallback chain:** Google Gemini 2.5 Flash → Groq (Llama 3.3 70B) → OpenRouter (DeepSeek R1)
 - **Paid provider support** (optional): Anthropic Claude and OpenAI as configurable primary providers
@@ -72,6 +89,7 @@ After (v0.3):
 - **Provider health check on startup** — logs active provider and full fallback chain
 
 ### Changed
+
 - **`requirements.txt`** — replaced `anthropic` SDK with `openai` SDK (OpenAI-compatible, works with all providers)
 - **`config.py`** — expanded from single-provider to multi-provider config with `PROVIDERS` dict and `FREE_FALLBACK_CHAIN`
 - **`.env.example`** — now includes all 5 providers (3 free + 2 paid) with setup links and rate limit notes
@@ -95,22 +113,23 @@ After (v0.2):
 
 ### Files Changed
 
-| File | Action | Description |
-|------|--------|-------------|
-| `providers.py` | **Created** | Multi-provider client with automatic fallback logic |
-| `bot.py` | Modified | Refactored to use `providers.py`, added `/provider` command, response footer |
-| `config.py` | Modified | Multi-provider config, provider definitions, fallback chain |
-| `requirements.txt` | Modified | `anthropic` → `openai` SDK |
-| `.env.example` | Modified | All 5 providers with API key placeholders and docs links |
-| `.env` | **Created** | Dummy keys for local development |
-| `CHANGELOG.md` | **Created** | This file |
-| `docs/PRODUCT_DESIGN.md` | Modified | Updated architecture, provider comparison, roadmap |
+| File                     | Action      | Description                                                                  |
+| ------------------------ | ----------- | ---------------------------------------------------------------------------- |
+| `providers.py`           | **Created** | Multi-provider client with automatic fallback logic                          |
+| `bot.py`                 | Modified    | Refactored to use `providers.py`, added `/provider` command, response footer |
+| `config.py`              | Modified    | Multi-provider config, provider definitions, fallback chain                  |
+| `requirements.txt`       | Modified    | `anthropic` → `openai` SDK                                                   |
+| `.env.example`           | Modified    | All 5 providers with API key placeholders and docs links                     |
+| `.env`                   | **Created** | Dummy keys for local development                                             |
+| `CHANGELOG.md`           | **Created** | This file                                                                    |
+| `docs/PRODUCT_DESIGN.md` | Modified    | Updated architecture, provider comparison, roadmap                           |
 
 ---
 
 ## [0.1.0] - 2026-02-18
 
 ### Added
+
 - Initial project setup
 - Discord bot with `discord.py`
 - Anthropic Claude API integration

@@ -16,7 +16,6 @@ class SetPrimaryRequest(BaseModel):
 
 @router.get("")
 async def list_providers(user: dict = Depends(get_current_user)):
-    available = providers.get_available_providers()
     result = []
     for name, info in config.PROVIDERS.items():
         result.append({
@@ -24,7 +23,8 @@ async def list_providers(user: dict = Depends(get_current_user)):
             "display_name": info["name"],
             "model": info["model"],
             "free": info["free"],
-            "configured": name in available,
+            "configured": providers.is_provider_configured(name),
+            "enabled": info.get("enabled", True),
             "is_primary": name == config.AI_PROVIDER,
         })
     return {"providers": result, "fallback_order": providers.FALLBACK_ORDER}
@@ -38,6 +38,36 @@ class TestProviderRequest(BaseModel):
 async def test_provider(body: TestProviderRequest, user: dict = Depends(get_current_user)):
     result = providers.test_provider(body.provider)
     return result
+
+
+class ToggleProviderRequest(BaseModel):
+    provider: str
+    enabled: bool
+
+
+@router.put("/toggle")
+async def toggle_provider(body: ToggleProviderRequest, user: dict = Depends(get_current_user)):
+    if body.provider not in config.PROVIDERS:
+        return {"error": f"Unknown provider: {body.provider}"}
+
+    disabled = [d.strip().lower() for d in config.DISABLED_PROVIDERS.split(",") if d.strip()]
+    
+    if body.enabled:
+        if body.provider in disabled:
+            disabled.remove(body.provider)
+    else:
+        if body.provider not in disabled:
+            disabled.append(body.provider)
+            
+    new_disabled = ",".join(disabled)
+    await db.set_config("DISABLED_PROVIDERS", new_disabled)
+    config.DISABLED_PROVIDERS = new_disabled
+    
+    # Refresh providers
+    config.PROVIDERS = config._build_providers()
+    providers.reload_clients()
+    
+    return {"status": "ok", "enabled": body.enabled}
 
 
 @router.put("/primary")

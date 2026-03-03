@@ -16,7 +16,7 @@ export function FallbackChain({ fallbackOrder, providers }: FallbackChainProps) 
         const prov = providers.find((p) => p.name === name);
         return (
           <div key={name} className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5">
+            <div className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 ${!prov?.enabled ? "opacity-50 grayscale" : ""}`}>
               <div
                 className={`h-2 w-2 rounded-full ${
                   prov?.configured ? "bg-green-500" : "bg-gray-300"
@@ -27,6 +27,9 @@ export function FallbackChain({ fallbackOrder, providers }: FallbackChainProps) 
                 <Badge variant="secondary" className="ml-1 text-xs">
                   Primary
                 </Badge>
+              )}
+              {!prov?.enabled && (
+                <span className="text-[10px] font-bold text-destructive uppercase ml-1">Disabled</span>
               )}
             </div>
             {i < fallbackOrder.length - 1 && (

@@ -10,7 +10,13 @@ import {
   Settings,
   MessageSquare,
   Wand2,
+  HelpCircle,
+  Shield,
+  UserPlus,
   LogOut,
+  Hash,
+  BarChart3,
+  Puzzle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -25,12 +31,19 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { ModeToggle } from "@/components/mode-toggle";
 
 const NAV_ITEMS = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { title: "Providers", href: "/dashboard/providers", icon: Cpu },
+  { title: "Plugins", href: "/dashboard/plugins", icon: Puzzle },
+  { title: "Channel Tuning", href: "/dashboard/channels", icon: Hash },
   { title: "Settings", href: "/dashboard/settings", icon: Settings },
+  { title: "Onboarding", href: "/dashboard/onboarding", icon: UserPlus },
   { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
+  { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
+  { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
 ];
 
 export function AppSidebar() {
@@ -39,11 +52,14 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Zap className="h-4 w-4" />
+        <div className="flex items-center justify-between px-2 py-1">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Zap className="h-4 w-4" />
+            </div>
+            <span className="font-semibold">SparkSage</span>
           </div>
-          <span className="font-semibold">SparkSage</span>
+          <ModeToggle />
         </div>
       </SidebarHeader>
       <SidebarContent>

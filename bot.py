@@ -6,88 +6,215 @@ from discord import app_commands
 import config
 import providers
 import db as database
+from utils.ai import get_history, ask_ai
+from utils.permissions import check_permission
+from plugins import loader as plugin_loader
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 
 bot = commands.Bot(command_prefix=config.BOT_PREFIX, intents=intents)
 
 MAX_HISTORY = 20
 
 
-async def get_history(channel_id: int) -> list[dict]:
-    """Get conversation history for a channel from the database."""
-    messages = await database.get_messages(str(channel_id), limit=MAX_HISTORY)
-    return [{"role": m["role"], "content": m["content"]} for m in messages]
-
-
-async def ask_ai(channel_id: int, user_name: str, message: str) -> tuple[str, str]:
-    """Send a message to AI and return (response, provider_name)."""
-    # Store user message in DB
-    await database.add_message(str(channel_id), "user", f"{user_name}: {message}")
-
-    history = await get_history(channel_id)
-
-    try:
-        response, provider_name = providers.chat(history, config.SYSTEM_PROMPT)
-        # Store assistant response in DB
-        await database.add_message(str(channel_id), "assistant", response, provider=provider_name)
-        return response, provider_name
-    except RuntimeError as e:
-        return f"Sorry, all AI providers failed:\n{e}", "none"
-
-
-def get_bot_status() -> dict:
+async def get_bot_status() -> dict:
     """Return bot status info for the dashboard API."""
-    if bot.is_ready():
+    is_ready = bot.is_ready()
+    guild_list = bot.guilds
+    
+    # Get guild count from DB as fallback or addition
+    db_guild_count = await database.get_total_guilds()
+    guild_count = max(len(guild_list), db_guild_count)
+    
+    print(f"[DEBUG] get_bot_status: ready={is_ready}, bot_guilds={len(guild_list)}, db_guilds={db_guild_count}, user={bot.user}")
+    
+    if is_ready and bot.user:
         return {
             "online": True,
             "username": str(bot.user),
-            "latency_ms": round(bot.latency * 1000, 1),
-            "guild_count": len(bot.guilds),
-            "guilds": [{"id": str(g.id), "name": g.name, "member_count": g.member_count} for g in bot.guilds],
+            "latency_ms": round(bot.latency * 1000, 1) if bot.latency is not None else None,
+            "guild_count": guild_count,
+            "guilds": [{"id": str(g.id), "name": g.name, "member_count": g.member_count} for g in guild_list],
         }
-    return {"online": False, "username": None, "latency_ms": None, "guild_count": 0, "guilds": []}
+    return {
+        "online": False, 
+        "username": None, 
+        "latency_ms": None, 
+        "guild_count": db_guild_count, 
+        "guilds": []
+    }
+
+
+def get_all_channels() -> list[dict]:
+    """Return a list of all text channels across all guilds."""
+    if not bot.is_ready():
+        print("[DEBUG] get_all_channels: Bot not ready yet.")
+        return []
+
+    channels = []
+    print(f"[DEBUG] get_all_channels: Searching in {len(bot.guilds)} guilds")
+    for guild in bot.guilds:
+        for channel in guild.text_channels:
+            channels.append({
+                "id": str(channel.id),
+                "name": channel.name,
+                "guild_name": guild.name,
+                "guild_id": str(guild.id)
+            })
+    print(f"[DEBUG] get_all_channels: Found {len(channels)} total channels")
+    return sorted(channels, key=lambda x: (x["guild_name"], x["name"]))
+
+
+def get_guild_roles(guild_id: str) -> list[dict]:
+    """Return list of roles for a guild."""
+    try:
+        if not guild_id:
+            return []
+        
+        print(f"[DEBUG] get_guild_roles for ID: {guild_id}")
+        
+        # Try to find the guild in the bot's cache
+        guild = bot.get_guild(int(guild_id))
+        
+        if not guild:
+            # Fallback: Search all guilds manually (sometimes cache lookup by ID is finicky)
+            print(f"[DEBUG] Guild {guild_id} not found by ID. Searching in {len(bot.guilds)} guilds...")
+            for g in bot.guilds:
+                if str(g.id) == str(guild_id):
+                    guild = g
+                    break
+        
+        if not guild:
+            print(f"[DEBUG] Guild {guild_id} still not found. Known: {[g.id for g in bot.guilds]}")
+            return []
+        
+        roles = []
+        # Sort roles by position (highest first)
+        sorted_roles = sorted(guild.roles, key=lambda r: r.position, reverse=True)
+        
+        for r in sorted_roles:
+            # Skip managed roles (bots/integrations) and @everyone
+            if r.managed or r.is_default():
+                continue
+                
+            roles.append({
+                "id": str(r.id),
+                "name": r.name,
+                "color": f"#{r.color.value:06x}" if r.color.value else "#99aab5"
+            })
+            
+        print(f"[DEBUG] Found {len(roles)} roles for guild: {guild.name}")
+        return roles
+    except Exception as e:
+        print(f"Error in get_guild_roles: {e}")
+        import traceback
+        traceback.print_exc()
+        return []
+
+
+async def get_all_command_names() -> list[str]:
+    """Return a list of all registered slash command names, including subcommands."""
+    if not bot.is_ready():
+        print("[DEBUG] get_all_command_names: Bot not ready yet.")
+        return []
+
+    command_names = set()
+    for command in bot.tree.get_commands(): # Use local commands
+        if isinstance(command, app_commands.Group):
+            for subcommand in command.commands:
+                command_names.add(f"{command.name} {subcommand.name}")
+        else:
+            command_names.add(command.name)
+    
+    print(f"[DEBUG] Found {len(command_names)} commands: {command_names}")
+    return sorted(list(command_names))
 
 
 # --- Events ---
 
 
+_extensions_loaded = False
+
 @bot.event
 async def on_ready():
-    # Initialize database when bot is ready
-    await database.init_db()
-    await database.sync_env_to_db()
+    global _extensions_loaded
+    if not _extensions_loaded:
+        _extensions_loaded = True
+        # Initialize database when bot is ready
+        await database.init_db()
+        await database.sync_env_to_db()
 
-    available = providers.get_available_providers()
-    primary = config.AI_PROVIDER
-    provider_info = config.PROVIDERS.get(primary, {})
+        # Verify intents
+        if not bot.intents.message_content:
+            print("CRITICAL: Message Content Intent is NOT enabled in the code or Discord portal.")
+        if not bot.intents.members:
+            print("CRITICAL: Members Intent is NOT enabled in the code or Discord portal.")
 
-    print(f"SparkSage is online as {bot.user}")
-    print(f"Primary provider: {provider_info.get('name', primary)} ({provider_info.get('model', '?')})")
-    print(f"Fallback chain: {' -> '.join(available)}")
+        await bot.load_extension("cogs.general")
+        await bot.load_extension("cogs.summarize")
+        await bot.load_extension("cogs.code_review")
+        await bot.load_extension("cogs.faq")
+        await bot.load_extension("cogs.onboarding")
+        await bot.load_extension("cogs.permissions")
+        await bot.load_extension("cogs.digest")
+        await bot.load_extension("cogs.moderation")
+        await bot.load_extension("cogs.translate")
+        await bot.load_extension("cogs.plugins")
 
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} slash command(s)")
-    except Exception as e:
-        print(f"Failed to sync commands: {e}")
+        # Initialize Plugins
+        plugin_loader.loader = plugin_loader.PluginLoader(bot)
+        await plugin_loader.loader.load_all_enabled()
 
+        available = providers.get_available_providers()
+        primary = config.AI_PROVIDER
+        provider_info = config.PROVIDERS.get(primary, {})
+
+        print(f"SparkSage is online as {bot.user}")
+        print(f"Connected to {len(bot.guilds)} guilds:")
+        for g in bot.guilds:
+            print(f" - {g.name} ({g.id})")
+        
+        print(f"Primary provider: {provider_info.get('name', primary)} ({provider_info.get('model', '?')})")
+        print(f"Fallback chain: {' -> '.join(available)}")
+
+        try:
+            synced = await bot.tree.sync()
+            print(f"Synced {len(synced)} slash command(s)")
+        except Exception as e:
+            print(f"Failed to sync commands: {e}")
+    else:
+        print("[DEBUG] Bot is already ready, skipping extension loading.")
 
 @bot.event
 async def on_message(message: discord.Message):
+    # Debug: Log all messages the bot hears
+    print(f"[DEBUG] Global on_message: {message.author}: {message.content[:50]} (Mod Enabled: {config.MODERATION_ENABLED})")
+
     if message.author == bot.user:
         return
 
     # Respond when mentioned
     if bot.user in message.mentions:
+        # Check permission for 'ask' command
+        guild_id = str(message.guild.id) if message.guild else None
+        if not await check_permission(message.author, "ask", guild_id):
+            await message.reply("You don't have permission to use the AI chat in this server.")
+            return
+
         clean_content = message.content.replace(f"<@{bot.user.id}>", "").strip()
         if not clean_content:
             clean_content = "Hello!"
 
         async with message.channel.typing():
             response, provider_name = await ask_ai(
-                message.channel.id, message.author.display_name, clean_content
+                message.channel.id, 
+                message.author.display_name, 
+                clean_content,
+                guild_id=message.guild.id if message.guild else None,
+                user_id=message.author.id,
+                event_type="mention"
             )
 
         # Split long responses (Discord 2000 char limit)
@@ -96,63 +223,7 @@ async def on_message(message: discord.Message):
 
     await bot.process_commands(message)
 
-
-# --- Slash Commands ---
-
-
-@bot.tree.command(name="ask", description="Ask SparkSage a question")
-@app_commands.describe(question="Your question for SparkSage")
-async def ask(interaction: discord.Interaction, question: str):
-    await interaction.response.defer()
-    response, provider_name = await ask_ai(
-        interaction.channel_id, interaction.user.display_name, question
-    )
-    provider_label = config.PROVIDERS.get(provider_name, {}).get("name", provider_name)
-    footer = f"\n-# Powered by {provider_label}"
-
-    for i in range(0, len(response), 1900):
-        chunk = response[i : i + 1900]
-        if i + 1900 >= len(response):
-            chunk += footer
-        await interaction.followup.send(chunk)
-
-
-@bot.tree.command(name="clear", description="Clear SparkSage's conversation memory for this channel")
-async def clear(interaction: discord.Interaction):
-    await database.clear_messages(str(interaction.channel_id))
-    await interaction.response.send_message("Conversation history cleared!")
-
-
-@bot.tree.command(name="summarize", description="Summarize the recent conversation in this channel")
-async def summarize(interaction: discord.Interaction):
-    await interaction.response.defer()
-    history = await get_history(interaction.channel_id)
-    if not history:
-        await interaction.followup.send("No conversation history to summarize.")
-        return
-
-    summary_prompt = "Please summarize the key points from this conversation so far in a concise bullet-point format."
-    response, provider_name = await ask_ai(
-        interaction.channel_id, interaction.user.display_name, summary_prompt
-    )
-    await interaction.followup.send(f"**Conversation Summary:**\n{response}")
-
-
-@bot.tree.command(name="provider", description="Show which AI provider SparkSage is currently using")
-async def provider(interaction: discord.Interaction):
-    primary = config.AI_PROVIDER
-    provider_info = config.PROVIDERS.get(primary, {})
-    available = providers.get_available_providers()
-
-    msg = f"**Current Provider:** {provider_info.get('name', primary)}\n"
-    msg += f"**Model:** `{provider_info.get('model', '?')}`\n"
-    msg += f"**Free:** {'Yes' if provider_info.get('free') else 'No (paid)'}\n"
-    msg += f"**Fallback Chain:** {' -> '.join(available)}"
-    await interaction.response.send_message(msg)
-
-
 # --- Run ---
-
 
 def main():
     if not config.DISCORD_TOKEN:

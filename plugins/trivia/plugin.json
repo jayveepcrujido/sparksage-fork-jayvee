@@ -1,0 +1,7 @@
+{
+  "name": "Trivia Game",
+  "version": "1.0.0",
+  "author": "SparkSage",
+  "description": "A fun trivia game plugin. Just use /trivia to start playing!",
+  "cog": "trivia.py"
+}

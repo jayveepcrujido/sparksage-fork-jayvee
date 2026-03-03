@@ -1,8 +1,12 @@
 """Unified launcher: starts FastAPI in a background thread and the Discord bot in the main thread."""
 
+import sys
+import os
+# Add the project root to sys.path to allow absolute imports from the sparksage package
+sys.path.append(os.path.dirname(__file__))
+
 import asyncio
 import threading
-import os
 import uvicorn
 
 
@@ -12,14 +16,21 @@ def start_api_server():
 
     app = create_app()
     port = int(os.getenv("DASHBOARD_PORT", "8000"))
-    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
+    is_dev = os.getenv("APP_ENV") == "development"
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", reload=is_dev)
 
 
 async def _init_database():
     """Initialize the database and seed config from .env."""
     import db
+    import config as cfg
     await db.init_db()
     await db.sync_env_to_db()
+    
+    # Load DB config into the config module variables
+    all_config = await db.get_all_config()
+    cfg.reload_from_db(all_config)
+    print("  Configuration loaded from database.")
 
 
 def main():

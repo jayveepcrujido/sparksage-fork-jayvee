@@ -44,6 +44,17 @@ export default function ProvidersPage() {
     }
   }
 
+  async function handleToggle(name: string, enabled: boolean) {
+    if (!token) return;
+    try {
+      await api.toggleProvider(token, name, enabled);
+      toast.success(`${name} ${enabled ? "enabled" : "disabled"}`);
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to toggle provider");
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -82,6 +93,7 @@ export default function ProvidersPage() {
             provider={provider}
             token={token!}
             onSetPrimary={handleSetPrimary}
+            onToggle={handleToggle}
           />
         ))}
       </div>

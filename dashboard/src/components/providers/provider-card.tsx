@@ -12,11 +12,13 @@ interface ProviderCardProps {
   provider: ProviderItem;
   token: string;
   onSetPrimary: (name: string) => void;
+  onToggle: (name: string, enabled: boolean) => void;
 }
 
-export function ProviderCard({ provider, token, onSetPrimary }: ProviderCardProps) {
+export function ProviderCard({ provider, token, onSetPrimary, onToggle }: ProviderCardProps) {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestProviderResult | null>(null);
+  const [toggling, setToggling] = useState(false);
 
   async function handleTest() {
     setTesting(true);
@@ -34,8 +36,17 @@ export function ProviderCard({ provider, token, onSetPrimary }: ProviderCardProp
     }
   }
 
+  async function handleToggle() {
+    setToggling(true);
+    try {
+      await onToggle(provider.name, !provider.enabled);
+    } finally {
+      setToggling(false);
+    }
+  }
+
   return (
-    <Card className={provider.is_primary ? "border-primary" : ""}>
+    <Card className={`${provider.is_primary ? "border-primary" : ""} ${!provider.enabled ? "opacity-60 bg-muted/30" : ""}`}>
       <CardHeader className="flex flex-row items-start justify-between pb-2">
         <div>
           <CardTitle className="text-base flex items-center gap-2">
@@ -45,6 +56,9 @@ export function ProviderCard({ provider, token, onSetPrimary }: ProviderCardProp
                 <Star className="mr-1 h-3 w-3" /> Primary
               </Badge>
             )}
+            {!provider.enabled && (
+              <Badge variant="destructive" className="text-[10px] h-4">Disabled</Badge>
+            )}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">{provider.model}</p>
         </div>
@@ -53,15 +67,28 @@ export function ProviderCard({ provider, token, onSetPrimary }: ProviderCardProp
         </Badge>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div
-            className={`h-2 w-2 rounded-full ${
-              provider.configured ? "bg-green-500" : "bg-gray-300"
-            }`}
-          />
-          <span className="text-sm">
-            {provider.configured ? "Configured" : "Not configured"}
-          </span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div
+              className={`h-2 w-2 rounded-full ${
+                provider.configured ? "bg-green-500" : "bg-gray-300"
+              }`}
+            />
+            <span className="text-sm">
+              {provider.configured ? "Configured" : "Not configured"}
+            </span>
+          </div>
+          
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className={`h-7 px-2 text-[10px] uppercase font-bold tracking-wider ${provider.enabled ? "text-destructive hover:text-destructive" : "text-primary hover:text-primary"}`}
+            onClick={handleToggle}
+            disabled={toggling || provider.is_primary}
+          >
+            {toggling ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            {provider.enabled ? "Disable" : "Enable"}
+          </Button>
         </div>
 
         <div className="flex gap-2">
@@ -69,14 +96,14 @@ export function ProviderCard({ provider, token, onSetPrimary }: ProviderCardProp
             variant="outline"
             size="sm"
             onClick={handleTest}
-            disabled={!provider.configured || testing}
+            disabled={!provider.configured || testing || !provider.enabled}
           >
             {testing ? (
               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
             ) : null}
             Test Key
           </Button>
-          {!provider.is_primary && provider.configured && (
+          {!provider.is_primary && provider.configured && provider.enabled && (
             <Button
               variant="outline"
               size="sm"

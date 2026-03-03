@@ -30,12 +30,54 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Bot settings
 BOT_PREFIX = os.getenv("BOT_PREFIX", "!")
-MAX_TOKENS = int(os.getenv("MAX_TOKENS", "1024"))
+MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4096"))
 SYSTEM_PROMPT = os.getenv(
     "SYSTEM_PROMPT",
     "You are SparkSage, a helpful and friendly AI assistant in a Discord server. "
     "Be concise, helpful, and engaging.",
 )
+
+# Onboarding settings
+WELCOME_ENABLED = os.getenv("WELCOME_ENABLED", "false").lower() == "true"
+WELCOME_DM_ENABLED = os.getenv("WELCOME_DM_ENABLED", "false").lower() == "true"
+WELCOME_CHANNEL_ID = os.getenv("WELCOME_CHANNEL_ID", "")
+WELCOME_MESSAGE = os.getenv(
+    "WELCOME_MESSAGE",
+    "Welcome {user} to {server}! We're glad to have you here.",
+)
+WELCOME_RULES = os.getenv("WELCOME_RULES", "")
+WELCOME_LINKS = os.getenv("WELCOME_LINKS", "")
+
+# Daily Digest settings
+DIGEST_ENABLED = os.getenv("DIGEST_ENABLED", "false").lower() == "true"
+DIGEST_CHANNEL_ID = os.getenv("DIGEST_CHANNEL_ID", "")
+DIGEST_TIME = os.getenv("DIGEST_TIME", "09:00")
+
+# Moderation settings
+MODERATION_ENABLED = os.getenv("MODERATION_ENABLED", "false").lower() == "true"
+MOD_LOG_CHANNEL_ID = os.getenv("MOD_LOG_CHANNEL_ID", "")
+MODERATION_SENSITIVITY = os.getenv("MODERATION_SENSITIVITY", "medium")
+
+# Translation settings
+TRANSLATE_ENABLED = os.getenv("TRANSLATE_ENABLED", "true").lower() == "true"
+AUTO_TRANSLATE_ENABLED = os.getenv("AUTO_TRANSLATE_ENABLED", "false").lower() == "true"
+
+# Rate Limiting settings
+RATE_LIMIT_USER = int(os.getenv("RATE_LIMIT_USER", "5")) # requests per minute
+RATE_LIMIT_GUILD = int(os.getenv("RATE_LIMIT_GUILD", "20")) # requests per minute
+
+# Provider Pricing (per 1 million tokens in USD)
+# [input_cost, output_cost]
+PROVIDER_PRICING = {
+    "gemini": [0.10, 0.40],
+    "groq": [0.0, 0.0],
+    "openrouter": [0.10, 0.40], # Generic estimate for free models
+    "anthropic": [3.00, 15.00],
+    "openai": [0.15, 0.60],
+}
+
+# Disabled providers (comma-separated list)
+DISABLED_PROVIDERS = os.getenv("DISABLED_PROVIDERS", "")
 
 # Dashboard settings
 DATABASE_PATH = os.getenv("DATABASE_PATH", "sparksage.db")
@@ -43,11 +85,13 @@ DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8000"))
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
-JWT_SECRET = os.getenv("JWT_SECRET", "sparksage-dev-secret-change-me")
+JWT_SECRET = os.getenv("JWT_SECRET", "sparksage-dev-secret-change-me-must-be-32-chars-long")
 
 
 def _build_providers() -> dict:
     """Build the PROVIDERS dict from current module-level variables."""
+    disabled = [d.strip().lower() for d in DISABLED_PROVIDERS.split(",") if d.strip()]
+    
     return {
         "gemini": {
             "name": "Google Gemini",
@@ -55,6 +99,7 @@ def _build_providers() -> dict:
             "api_key": GEMINI_API_KEY,
             "model": GEMINI_MODEL,
             "free": True,
+            "enabled": "gemini" not in disabled,
         },
         "groq": {
             "name": "Groq",
@@ -62,6 +107,7 @@ def _build_providers() -> dict:
             "api_key": GROQ_API_KEY,
             "model": GROQ_MODEL,
             "free": True,
+            "enabled": "groq" not in disabled,
         },
         "openrouter": {
             "name": "OpenRouter",
@@ -69,6 +115,7 @@ def _build_providers() -> dict:
             "api_key": OPENROUTER_API_KEY,
             "model": OPENROUTER_MODEL,
             "free": True,
+            "enabled": "openrouter" not in disabled,
         },
         "anthropic": {
             "name": "Anthropic Claude",
@@ -76,6 +123,7 @@ def _build_providers() -> dict:
             "api_key": ANTHROPIC_API_KEY,
             "model": ANTHROPIC_MODEL,
             "free": False,
+            "enabled": "anthropic" not in disabled,
         },
         "openai": {
             "name": "OpenAI",
@@ -83,6 +131,7 @@ def _build_providers() -> dict:
             "api_key": OPENAI_API_KEY,
             "model": OPENAI_MODEL,
             "free": False,
+            "enabled": "openai" not in disabled,
         },
     }
 
@@ -118,6 +167,23 @@ def reload_from_db(db_config: dict[str, str]):
         "DISCORD_CLIENT_ID": str,
         "DISCORD_CLIENT_SECRET": str,
         "JWT_SECRET": str,
+        "WELCOME_ENABLED": lambda v: str(v).lower() == "true",
+        "WELCOME_DM_ENABLED": lambda v: str(v).lower() == "true",
+        "WELCOME_CHANNEL_ID": str,
+        "WELCOME_MESSAGE": str,
+        "WELCOME_RULES": str,
+        "WELCOME_LINKS": str,
+        "DIGEST_ENABLED": lambda v: str(v).lower() == "true",
+        "DIGEST_CHANNEL_ID": str,
+        "DIGEST_TIME": str,
+        "MODERATION_ENABLED": lambda v: str(v).lower() == "true",
+        "MOD_LOG_CHANNEL_ID": str,
+        "MODERATION_SENSITIVITY": str,
+        "TRANSLATE_ENABLED": lambda v: str(v).lower() == "true",
+        "AUTO_TRANSLATE_ENABLED": lambda v: str(v).lower() == "true",
+        "RATE_LIMIT_USER": int,
+        "RATE_LIMIT_GUILD": int,
+        "DISABLED_PROVIDERS": str,
     }
 
     for key, converter in mapping.items():
