@@ -26,5 +26,5 @@
        "dest": "dashboard/$1"
      }
    ],
-   "installCommand": "pip install -r requirements.txt && npm install --prefix dashboard"
+    "installCommand": "uv pip install -r requirements.txt && npm install --prefix dashboard"
 }
