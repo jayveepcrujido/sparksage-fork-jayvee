@@ -50,3 +50,4 @@ def create_app() -> FastAPI:
         return {"routes": routes_list}
 
     return app
+app = create_app()
