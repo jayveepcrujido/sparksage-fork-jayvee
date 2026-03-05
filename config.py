@@ -87,6 +87,9 @@ DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID", "")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET", "")
 JWT_SECRET = os.getenv("JWT_SECRET", "sparksage-dev-secret-change-me-must-be-32-chars-long")
 
+# Bot Service
+BOT_SERVICE_URL = os.getenv("BOT_SERVICE_URL") # URL for the bot service's internal API, e.g., http://localhost:8001
+
 
 def _build_providers() -> dict:
     """Build the PROVIDERS dict from current module-level variables."""

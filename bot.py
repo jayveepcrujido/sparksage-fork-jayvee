@@ -3,6 +3,9 @@ from __future__ import annotations
 import discord
 from discord.ext import commands
 from discord import app_commands
+from fastapi import FastAPI
+import uvicorn
+import asyncio
 import config
 import providers
 import db as database
@@ -17,6 +20,14 @@ intents.members = True
 bot = commands.Bot(command_prefix=config.BOT_PREFIX, intents=intents)
 
 MAX_HISTORY = 20
+
+# Create a FastAPI app for the bot's status
+status_app = FastAPI()
+
+@status_app.get("/bot/status")
+async def bot_status_api():
+    """Endpoint to return bot status for the dashboard API."""
+    return await get_bot_status()
 
 
 async def get_bot_status() -> dict:
@@ -225,7 +236,7 @@ async def on_message(message: discord.Message):
 
 # --- Run ---
 
-def main():
+async def main():
     if not config.DISCORD_TOKEN:
         print("Error: DISCORD_TOKEN not set. Copy .env.example to .env and fill in your tokens.")
         return
@@ -236,8 +247,21 @@ def main():
         print("Free options: GEMINI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY")
         return
 
-    bot.run(config.DISCORD_TOKEN)
+    # Start the bot
+    discord_task = asyncio.create_task(bot.start(config.DISCORD_TOKEN))
+
+    # Start the FastAPI server
+    server_config = uvicorn.Config(
+        status_app,
+        host="0.0.0.0",
+        port=8001, # Use a different port than the main API, e.g., 8001
+        log_level="info",
+    )
+    server = uvicorn.Server(server_config)
+    web_server_task = asyncio.create_task(server.serve())
+
+    await asyncio.gather(discord_task, web_server_task)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
