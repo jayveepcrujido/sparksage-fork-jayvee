@@ -374,13 +374,17 @@ async def list_channels() -> list[dict]:
 async def search_messages(query: str, guild_id: str | None = None, limit: int = 100) -> list[dict]:
     """Search conversation content using FTS5. Returns matching message rows."""
     db = await get_db()
+    # Prepare query for FTS5: escape double quotes and enclose in double quotes for literal matching
+    # This prevents FTS5 from interpreting special characters like '?' as syntax errors.
+    prepared_query = '"' + query.replace('"', '""') + '"'
+
     if guild_id:
         cursor = await db.execute(
             "SELECT channel_id, role, content, provider, category, created_at "
             "FROM conversations "
             "WHERE guild_id = ? AND id IN (SELECT rowid FROM conversations_fts WHERE conversations_fts MATCH ?) "
             "ORDER BY created_at DESC LIMIT ?",
-            (guild_id, query, limit),
+            (guild_id, prepared_query, limit),
         )
     else:
         cursor = await db.execute(
@@ -388,7 +392,7 @@ async def search_messages(query: str, guild_id: str | None = None, limit: int = 
             "FROM conversations "
             "WHERE id IN (SELECT rowid FROM conversations_fts WHERE conversations_fts MATCH ?) "
             "ORDER BY created_at DESC LIMIT ?",
-            (query, limit),
+            (prepared_query, limit),
         )
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
