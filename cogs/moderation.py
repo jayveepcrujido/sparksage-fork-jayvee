@@ -11,19 +11,25 @@ class ModerationCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.author.bot:
+        if message.author.bot or not message.guild:
             return
             
-        if not config.MODERATION_ENABLED:
+        guild_id = str(message.guild.id)
+        
+        # Check guild-specific config
+        is_enabled = await database.get_guild_config_value(guild_id, "MODERATION_ENABLED", "false")
+        if is_enabled != "true":
             return
 
         # Prepare moderation prompt
-        print(f"[DEBUG] Scanning message from {message.author}: {message.content[:50]}...")
+        sensitivity = await database.get_guild_config_value(guild_id, "MODERATION_SENSITIVITY", config.MODERATION_SENSITIVITY)
+        
+        print(f"[DEBUG] Scanning message from {message.author} in guild {guild_id}...")
         
         system_prompt = (
             "You are an expert content moderator for a Discord server. "
             "Your task is to analyze the provided message for toxicity, hate speech, severe insults, spam, or obvious rule violations. "
-            f"Sensitivity level: {config.MODERATION_SENSITIVITY} (low = only flag extreme, high = flag mild issues). "
+            f"Sensitivity level: {sensitivity} (low = only flag extreme, high = flag mild issues). "
             "Output MUST be valid JSON and nothing else. "
             'Expected format: {"flagged": bool, "reason": "string", "severity": "low"|"medium"|"high"}'
         )
@@ -97,7 +103,7 @@ class ModerationCog(commands.Cog):
         )
 
         # Post to mod-log channel
-        mod_channel_id = config.MOD_LOG_CHANNEL_ID
+        mod_channel_id = await database.get_guild_config_value(guild_id, "MOD_LOG_CHANNEL_ID", config.MOD_LOG_CHANNEL_ID)
         if not mod_channel_id:
             return
 

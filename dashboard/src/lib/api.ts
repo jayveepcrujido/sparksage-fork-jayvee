@@ -251,10 +251,16 @@ export const api = {
 
   getBotStats: (token: string) =>
     apiFetch<BotStats>("/api/bot/stats", { token }),
+getChannels: (token: string) =>
+  apiFetch<{ channels: DiscordChannel[] }>("/api/bot/channels", { token }),
 
-  getChannels: (token: string) =>
-    apiFetch<{ channels: DiscordChannel[] }>("/api/bot/channels", { token }),
+getGuildChannels: (token: string, guildId: string) =>
+  apiFetch<{ channels: DiscordChannel[] }>(`/api/guilds/${guildId}/channels`, { token }),
 
+getGuildRoles: (token: string, guildId: string) =>
+  apiFetch<{ roles: DiscordRole[] }>(`/api/guilds/${guildId}/roles`, { token }),
+
+// Plugins
   // Conversations
   getConversations: (token: string) =>
     apiFetch<{ channels: ChannelItem[] }>("/api/conversations", { token }),

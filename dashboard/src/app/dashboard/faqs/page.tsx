@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Plus, Trash2, MessageCircle } from "lucide-react";
+import { Loader2, Plus, Trash2, MessageCircle, Globe } from "lucide-react";
 import { api, FAQItem } from "@/lib/api";
+import { useGuild } from "@/components/providers/guild-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,13 +31,13 @@ import { toast } from "sonner";
 
 export default function FAQsPage() {
   const { data: session } = useSession();
+  const { selectedGuildId, selectedGuild } = useGuild();
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   
   // New FAQ form state
   const [newFaq, setNewFaq] = useState({
-    guild_id: "",
     question: "",
     answer: "",
     match_keywords: "",
@@ -45,9 +46,10 @@ export default function FAQsPage() {
   const token = (session as { accessToken?: string })?.accessToken;
 
   async function load() {
-    if (!token) return;
+    if (!token || !selectedGuildId) return;
+    setLoading(true);
     try {
-      const result = await api.getFAQs(token);
+      const result = await api.getFAQs(token, selectedGuildId);
       setFaqs(result.faqs);
     } catch {
       toast.error("Failed to load FAQs");
@@ -58,20 +60,23 @@ export default function FAQsPage() {
 
   useEffect(() => {
     load();
-  }, [token]);
+  }, [token, selectedGuildId]);
 
   async function handleAdd() {
-    if (!token) return;
-    if (!newFaq.guild_id || !newFaq.question || !newFaq.answer || !newFaq.match_keywords) {
+    if (!token || !selectedGuildId) return;
+    if (!newFaq.question || !newFaq.answer || !newFaq.match_keywords) {
       toast.error("Please fill in all fields");
       return;
     }
 
     try {
-      await api.createFAQ(token, newFaq);
+      await api.createFAQ(token, {
+        ...newFaq,
+        guild_id: selectedGuildId
+      });
       toast.success("FAQ created successfully");
       setOpen(false);
-      setNewFaq({ guild_id: "", question: "", answer: "", match_keywords: "" });
+      setNewFaq({ question: "", answer: "", match_keywords: "" });
       await load();
     } catch (err) {
       toast.error("Failed to create FAQ");
@@ -89,6 +94,16 @@ export default function FAQsPage() {
     }
   }
 
+  if (!selectedGuildId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Globe className="h-12 w-12 text-muted-foreground/20 mb-4" />
+        <h2 className="text-xl font-semibold">No Server Selected</h2>
+        <p className="text-muted-foreground">Please select a server from the sidebar to manage its FAQs.</p>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -100,7 +115,10 @@ export default function FAQsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">FAQ Management</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">FAQ Management</h1>
+          <p className="text-muted-foreground">Server: {selectedGuild?.name}</p>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -111,19 +129,10 @@ export default function FAQsPage() {
             <DialogHeader>
               <DialogTitle>Add New FAQ</DialogTitle>
               <DialogDescription>
-                Create an automated response for common questions.
+                Create an automated response for common questions in {selectedGuild?.name}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="guild_id">Guild ID</Label>
-                <Input
-                  id="guild_id"
-                  placeholder="e.g. 1234567890"
-                  value={newFaq.guild_id}
-                  onChange={(e) => setNewFaq({ ...newFaq, guild_id: e.target.value })}
-                />
-              </div>
               <div className="grid gap-2">
                 <Label htmlFor="question">Question</Label>
                 <Input
@@ -162,23 +171,22 @@ export default function FAQsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Global FAQ List</CardTitle>
+          <CardTitle>Automated Responses</CardTitle>
           <CardDescription>
-            These automated responses will trigger when keywords are detected in messages.
+            These responses will trigger in {selectedGuild?.name} when keywords are detected.
           </CardDescription>
         </CardHeader>
         <CardContent>
           {faqs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <MessageCircle className="h-12 w-12 text-muted-foreground mb-4 opacity-20" />
-              <p className="text-muted-foreground">No FAQs configured yet.</p>
+              <p className="text-muted-foreground">No FAQs configured yet for this server.</p>
             </div>
           ) : (
             <div className="relative overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Guild ID</TableHead>
                     <TableHead>Question</TableHead>
                     <TableHead>Keywords</TableHead>
                     <TableHead className="text-right">Used</TableHead>
@@ -188,7 +196,6 @@ export default function FAQsPage() {
                 <TableBody>
                   {faqs.map((faq) => (
                     <TableRow key={faq.id}>
-                      <TableCell className="font-mono text-xs whitespace-nowrap">{faq.guild_id}</TableCell>
                       <TableCell className="font-medium whitespace-nowrap">{faq.question}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1 min-w-[150px]">

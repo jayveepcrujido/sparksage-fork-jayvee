@@ -605,7 +605,7 @@ async def set_guild_config(guild_id: str, key: str, value: str):
     """Set a per-guild config value."""
     db = await get_db()
     await db.execute(
-        "INSERT INTO guild_config (guild_id, key, value) VALUES (?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value",
+        "INSERT INTO guild_config (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value",
         (guild_id, key, value),
     )
     await db.commit()
