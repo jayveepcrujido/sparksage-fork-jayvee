@@ -36,18 +36,21 @@ class TokenResponse(BaseModel):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest):
-    admin_pw = os.getenv("ADMIN_PASSWORD", "")
-    if not admin_pw:
-        # If no password is set, check DB for one
-        db_pw = await db.get_config("ADMIN_PASSWORD")
-        if db_pw:
-            admin_pw = db_pw
+    # Try to get hashed password from environment (will hash if first time)
+    admin_pw_to_verify = _get_hashed_password()
 
-    if not admin_pw:
-        raise HTTPException(status_code=400, detail="No admin password configured. Set ADMIN_PASSWORD in .env")
+    # If not from env, check DB
+    if not admin_pw_to_verify:
+        db_pw_plaintext = await db.get_config("ADMIN_PASSWORD")
+        if db_pw_plaintext:
+            # Assume DB password is plaintext and hash it for verification
+            admin_pw_to_verify = hash_password(db_pw_plaintext)
 
-    # Simple direct comparison for the env-based password
-    if body.password != admin_pw:
+    if not admin_pw_to_verify:
+        raise HTTPException(status_code=400, detail="No admin password configured. Set ADMIN_PASSWORD in .env or database.")
+
+    # Use verify_password to check the provided password against the (potentially hashed) stored password
+    if not verify_password(body.password, admin_pw_to_verify):
         raise HTTPException(status_code=401, detail="Invalid password")
 
     token, expires_at = create_token("admin")
