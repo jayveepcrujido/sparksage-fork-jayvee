@@ -84,16 +84,18 @@ export interface MessageItem {
   created_at: string;
 }
 
+export interface DiscordGuild {
+  id: string;
+  name: string;
+  member_count: number;
+}
+
 export interface BotStatus {
   online: boolean;
   username: string | null;
   latency_ms: number | null;
   guild_count: number;
-  guilds: Array<{
-    id: string;
-    name: string;
-    member_count: number;
-  }>;
+  guilds: DiscordGuild[];
 }
 
 export interface BotStats {
