@@ -62,16 +62,36 @@ class PluginLoader:
                 print(f"[PLUGINS] No cog file defined for {plugin_id}")
                 return False
 
-            cog_path = os.path.join(PLUGINS_DIR, plugin_id, cog_file)
+            # Try to find the actual cog file
+            potential_files = [
+                cog_file,
+                f"{cog_file}.py",
+                "cog.py",
+                "main.py",
+                f"{plugin_id}.py"
+            ]
             
+            cog_path = None
+            found_cog_file = None
+            for pf in potential_files:
+                p = os.path.join(PLUGINS_DIR, plugin_id, pf)
+                if os.path.exists(p) and not os.path.isdir(p):
+                    cog_path = p
+                    found_cog_file = pf
+                    break
+            
+            if not cog_path:
+                print(f"[PLUGINS] Could not find a valid cog file for {plugin_id}. Checked: {potential_files}")
+                return False
+
             # Dynamic import
-            module_name = f"plugins.{plugin_id}.{cog_file.replace('.py', '')}"
-            
-            # Check if cog is already in bot.cogs (perhaps from a different plugin or failed cleanup)
-            # We can't easily know the class name without importing, so we rely on the manual cleanup below
+            # Replace hyphens with underscores in module name to ensure it's a valid identifier
+            safe_id = plugin_id.replace("-", "_")
+            module_name = f"plugins.{safe_id}.{found_cog_file.replace('.py', '')}"
             
             spec = importlib.util.spec_from_file_location(module_name, cog_path)
             if not spec or not spec.loader:
+                print(f"[PLUGINS] Failed to create module spec for {cog_path}")
                 return False
                 
             module = importlib.util.module_from_spec(spec)
@@ -90,8 +110,9 @@ class PluginLoader:
                     else:
                         raise ce
                 
+                manifest["_found_cog_file"] = found_cog_file
                 self.loaded_plugins[plugin_id] = manifest
-                print(f"[PLUGINS] Loaded: {manifest.get('name', plugin_id)} v{manifest.get('version', '1.0.0')}")
+                print(f"[PLUGINS] Loaded: {manifest.get('name', plugin_id)} v{manifest.get('version', '1.0.0')} from {found_cog_file}")
                 
                 # Sync commands
                 try:
@@ -102,11 +123,13 @@ class PluginLoader:
                     
                 return True
             else:
-                print(f"[PLUGINS] No setup function in {cog_file}")
+                print(f"[PLUGINS] No setup function in {found_cog_file}")
                 return False
 
         except Exception as e:
             print(f"[PLUGINS] Failed to load {plugin_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     async def unload_plugin(self, plugin_id: str) -> bool:
@@ -116,13 +139,11 @@ class PluginLoader:
                 return False
             
             manifest = self.loaded_plugins[plugin_id]
-            cog_file = manifest.get("cog")
-            module_name = f"plugins.{plugin_id}.{cog_file.replace('.py', '')}"
+            cog_file = manifest.get("_found_cog_file") or manifest.get("cog")
             
-            # Unload from bot
-            # We need to find the cog class name or the module name
-            # discord.py's unload_extension works if it was loaded as an extension
-            # But we loaded it manually. Let's try to find the cog.
+            # Use same naming convention as load_plugin
+            safe_id = plugin_id.replace("-", "_")
+            module_name = f"plugins.{safe_id}.{cog_file.replace('.py', '')}"
             
             # Simple approach: find cogs belonging to this module
             to_remove = []
