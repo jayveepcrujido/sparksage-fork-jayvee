@@ -190,7 +190,7 @@ export interface PluginItem {
   enabled: boolean;
 }
 
-export interface RoleItem {
+export interface DiscordRole {
   id: string;
   name: string;
   color: string;
@@ -409,7 +409,7 @@ getGuildRoles: (token: string, guildId: string) =>
     ),
 
   getRoles: (token: string, guildId: string) =>
-    apiFetch<{ roles: RoleItem[] }>(`/api/permissions/roles/${guildId}`, {
+    apiFetch<{ roles: DiscordRole[] }>(`/api/permissions/roles/${guildId}`, {
       token,
     }),
 

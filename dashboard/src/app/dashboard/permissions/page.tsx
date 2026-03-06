@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Loader2, Shield, ShieldAlert, Plus, Trash2, RefreshCw, Search, Globe } from "lucide-react";
-import { api, PermissionItem, RoleItem } from "@/lib/api";
+import { api, PermissionItem, DiscordRole } from "@/lib/api";
 import { useGuild } from "@/components/providers/guild-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ export default function PermissionsPage() {
   const { selectedGuildId, selectedGuild } = useGuild();
   const [loading, setLoading] = useState(true);
   const [permissions, setPermissions] = useState<PermissionItem[]>([]);
-  const [roles, setRoles] = useState<RoleItem[]>([]);
+  const [roles, setRoles] = useState<DiscordRole[]>([]);
   const [allCommands, setAllCommands] = useState<string[]>([]);
   const [commandFilter, setCommandFilter] = useState<string>("");
 
