@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Search, X } from "lucide-react";
+import { Loader2, Search, X, Globe } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChannelItem, MessageItem } from "@/lib/api";
+import { useGuild } from "@/components/providers/guild-provider";
 import { ChannelList } from "@/components/conversations/channel-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 
 export default function ConversationsPage() {
   const { data: session } = useSession();
+  const { selectedGuildId, selectedGuild } = useGuild();
   const [channels, setChannels] = useState<ChannelItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,9 +28,10 @@ export default function ConversationsPage() {
   const token = (session as { accessToken?: string })?.accessToken;
 
   async function load() {
-    if (!token) return;
+    if (!token || !selectedGuildId) return;
+    setLoading(true);
     try {
-      const result = await api.getConversations(token);
+      const result = await api.getConversations(token, selectedGuildId);
       setChannels(result.channels);
     } catch {
       toast.error("Failed to load conversations");
@@ -39,14 +42,14 @@ export default function ConversationsPage() {
 
   useEffect(() => {
     load();
-  }, [token]);
+  }, [token, selectedGuildId]);
 
   async function performSearch() {
     if (!token || !searchQuery.trim()) return;
     setSearching(true);
     setHasSearched(true);
     try {
-      const res = await api.searchConversations(token, searchQuery);
+      const res = await api.searchConversations(token, searchQuery, selectedGuildId || undefined);
       setSearchResults(res.results);
     } catch (e) {
       toast.error("Search failed");
@@ -106,6 +109,16 @@ export default function ConversationsPage() {
     }
   }
 
+  if (!selectedGuildId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Globe className="h-12 w-12 text-muted-foreground/20 mb-4" />
+        <h2 className="text-xl font-semibold">No Server Selected</h2>
+        <p className="text-muted-foreground">Please select a server from the sidebar to view its conversations.</p>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -119,9 +132,12 @@ export default function ConversationsPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">
-            Search Results for {`"${searchQuery}"`}
-          </h1>
+          <div>
+            <h1 className="text-2xl font-bold">
+              Search Results
+            </h1>
+            <p className="text-muted-foreground">Query: {`"${searchQuery}"`} in {selectedGuild?.name}</p>
+          </div>
           <Button
             variant="ghost"
             size="sm"
@@ -193,7 +209,11 @@ export default function ConversationsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Conversations</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Conversations</h1>
+        <p className="text-muted-foreground">Server: {selectedGuild?.name}</p>
+      </div>
+      
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />

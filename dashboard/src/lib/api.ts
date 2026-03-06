@@ -262,8 +262,11 @@ getGuildRoles: (token: string, guildId: string) =>
 
 // Plugins
   // Conversations
-  getConversations: (token: string) =>
-    apiFetch<{ channels: ChannelItem[] }>("/api/conversations", { token }),
+  getConversations: (token: string, guildId?: string) =>
+    apiFetch<{ channels: ChannelItem[] }>(
+      "/api/conversations" + (guildId ? `?guild_id=${guildId}` : ""),
+      { token },
+    ),
 
   getConversation: (token: string, channelId: string) =>
     apiFetch<{
@@ -475,10 +478,11 @@ getGuildRoles: (token: string, guildId: string) =>
   },
 
   // Analytics
-  getAnalyticsSummary: (token: string, days: number = 7) =>
-    apiFetch<AnalyticsSummary>(`/api/analytics/summary?days=${days}`, {
-      token,
-    }),
+  getAnalyticsSummary: (token: string, days: number = 7, guildId?: string) =>
+    apiFetch<AnalyticsSummary>(
+      `/api/analytics/summary?days=${days}${guildId ? `&guild_id=${guildId}` : ""}`,
+      { token },
+    ),
 
   getAnalyticsHistory: (token: string, limit: number = 100) =>
     apiFetch<{ history: AnalyticsEvent[] }>(

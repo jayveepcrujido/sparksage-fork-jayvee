@@ -7,8 +7,8 @@ import db
 router = APIRouter()
 
 @router.get("/summary")
-async def get_analytics_summary(days: int = 7, user: dict = Depends(get_current_user)):
-    summary = await db.get_analytics_summary(days)
+async def get_analytics_summary(days: int = 7, guild_id: str | None = None, user: dict = Depends(get_current_user)):
+    summary = await db.get_analytics_summary(days, guild_id)
     return summary
 
 @router.get("/history")

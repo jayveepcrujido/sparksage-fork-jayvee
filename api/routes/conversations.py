@@ -8,13 +8,17 @@ router = APIRouter()
 
 
 @router.get("")
-async def list_conversations(user: dict = Depends(get_current_user)):
+async def list_conversations(guild_id: str | None = None, user: dict = Depends(get_current_user)):
     # fetch stored channel stats
-    channels = await db.list_channels()
+    channels = await db.list_channels(guild_id)
 
     # map ids → names using bot helper (used elsewhere for Channel Tuning)
     from bot import get_all_channels
-    name_map = {c["id"]: c.get("name") for c in get_all_channels()}
+    all_channels = get_all_channels()
+    if guild_id:
+        name_map = {c["id"]: c.get("name") for c in all_channels if c["guild_id"] == guild_id}
+    else:
+        name_map = {c["id"]: c.get("name") for c in all_channels}
 
     for ch in channels:
         ch["channel_name"] = name_map.get(ch.get("channel_id"))

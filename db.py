@@ -349,11 +349,11 @@ async def clear_messages(channel_id: str):
     await db.commit()
 
 
-async def list_channels() -> list[dict]:
+async def list_channels(guild_id: str | None = None) -> list[dict]:
     """List all channels with message counts and code review status."""
     db = await get_db()
-    cursor = await db.execute(
-        """
+    
+    query = """
         SELECT 
             channel_id, 
             guild_id,
@@ -361,10 +361,19 @@ async def list_channels() -> list[dict]:
             MAX(created_at) as last_active,
             MAX(CASE WHEN category = 'code_review' THEN 1 ELSE 0 END) as has_code_review
         FROM conversations
+    """
+    params = []
+    
+    if guild_id:
+        query += " WHERE guild_id = ?"
+        params.append(guild_id)
+        
+    query += """
         GROUP BY channel_id, guild_id
         ORDER BY last_active DESC
-        """
-    )
+    """
+    
+    cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
 
@@ -854,77 +863,93 @@ async def log_analytics(
     await db.commit()
 
 
-async def get_analytics_summary(days: int = 7) -> dict:
+async def get_analytics_summary(days: int = 7, guild_id: str | None = None) -> dict:
     """Get summarized analytics for dashboard charts."""
     db = await get_db()
     
     # Events per day
-    cursor = await db.execute(
-        """
+    query_events = """
         SELECT date(created_at) as day, COUNT(*) as count
         FROM analytics
         WHERE created_at > datetime('now', ?)
-        GROUP BY day
-        ORDER BY day ASC
-        """,
-        (f"-{days} days",)
-    )
+    """
+    params_events = [f"-{days} days"]
+    if guild_id:
+        query_events += " AND guild_id = ?"
+        params_events.append(guild_id)
+    query_events += " GROUP BY day ORDER BY day ASC"
+    
+    cursor = await db.execute(query_events, params_events)
     daily_events = [{"day": r["day"], "count": r["count"]} for r in await cursor.fetchall()]
     
     # Provider distribution
-    cursor = await db.execute(
-        """
+    query_prov = """
         SELECT provider, COUNT(*) as count
         FROM analytics
         WHERE provider IS NOT NULL
-        GROUP BY provider
-        """
-    )
+    """
+    params_prov = []
+    if guild_id:
+        query_prov += " AND guild_id = ?"
+        params_prov.append(guild_id)
+    query_prov += " GROUP BY provider"
+    
+    cursor = await db.execute(query_prov, params_prov)
     provider_dist = [{"name": r["provider"], "value": r["count"]} for r in await cursor.fetchall()]
     
     # Top channels
-    cursor = await db.execute(
-        """
+    query_chan = """
         SELECT channel_id, COUNT(*) as count
         FROM analytics
         WHERE channel_id IS NOT NULL
-        GROUP BY channel_id
-        ORDER BY count DESC
-        LIMIT 5
-        """
-    )
+    """
+    params_chan = []
+    if guild_id:
+        query_chan += " AND guild_id = ?"
+        params_chan.append(guild_id)
+    query_chan += " GROUP BY channel_id ORDER BY count DESC LIMIT 5"
+    
+    cursor = await db.execute(query_chan, params_chan)
     top_channels = [{"id": r["channel_id"], "count": r["count"]} for r in await cursor.fetchall()]
     
     # Average latency
-    cursor = await db.execute(
-        """
+    query_lat = """
         SELECT date(created_at) as day, AVG(latency_ms) as avg_latency
         FROM analytics
         WHERE latency_ms IS NOT NULL AND created_at > datetime('now', ?)
-        GROUP BY day
-        ORDER BY day ASC
-        """,
-        (f"-{days} days",)
-    )
+    """
+    params_lat = [f"-{days} days"]
+    if guild_id:
+        query_lat += " AND guild_id = ?"
+        params_lat.append(guild_id)
+    query_lat += " GROUP BY day ORDER BY day ASC"
+    
+    cursor = await db.execute(query_lat, params_lat)
     latency_history = [{"day": r["day"], "latency": round(r["avg_latency"] or 0)} for r in await cursor.fetchall()]
 
     # Rate limited count
-    cursor = await db.execute(
-        "SELECT COUNT(*) as count FROM analytics WHERE event_type = 'rate_limited' AND created_at > datetime('now', ?)",
-        (f"-{days} days",)
-    )
+    query_rate = "SELECT COUNT(*) as count FROM analytics WHERE event_type = 'rate_limited' AND created_at > datetime('now', ?)"
+    params_rate = [f"-{days} days"]
+    if guild_id:
+        query_rate += " AND guild_id = ?"
+        params_rate.append(guild_id)
+        
+    cursor = await db.execute(query_rate, params_rate)
     total_rate_limited = (await cursor.fetchone())["count"]
 
     # Cost metrics
-    cursor = await db.execute(
-        """
+    query_cost = """
         SELECT provider, SUM(estimated_cost) as cost
         FROM analytics
         WHERE estimated_cost IS NOT NULL AND created_at > datetime('now', ?)
-        GROUP BY provider
-        """,
-        (f"-{days} days",)
-    )
+    """
+    params_cost = [f"-{days} days"]
+    if guild_id:
+        query_cost += " AND guild_id = ?"
+        params_cost.append(guild_id)
+    query_cost += " GROUP BY provider"
+    
+    cursor = await db.execute(query_cost, params_cost)
     cost_by_provider = {r["provider"]: r["cost"] for r in await cursor.fetchall()}
     
     total_cost = sum(cost_by_provider.values())
