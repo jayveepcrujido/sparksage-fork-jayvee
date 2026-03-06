@@ -1,4 +1,18 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const getApiUrl = () => {
+  let url = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  
+  // Auto-upgrade to https if page is on https and url is http (and not localhost)
+  if (typeof window !== "undefined" && 
+      window.location.protocol === "https:" && 
+      url.startsWith("http://") && 
+      !url.includes("localhost")) {
+    url = url.replace("http://", "https://");
+  }
+  
+  return url;
+};
+
+const API_URL = getApiUrl();
 
 interface FetchOptions extends RequestInit {
   token?: string;
@@ -432,10 +446,12 @@ export const api = {
     }),
 
   // Auto-Translation
-  getChannelAutoTranslate: (token: string, channelId: string) =>
-    apiFetch<AutoTranslateSetting>("/api/autotranslate/" + channelId, {
+  getChannelAutoTranslate: (token: string, channelId: string) => {
+    if (!channelId) throw new Error("channelId is required");
+    return apiFetch<AutoTranslateSetting>("/api/autotranslate/" + channelId, {
       token,
-    }),
+    });
+  },
 
   setChannelAutoTranslate: (token: string, data: AutoTranslateSetting) =>
     apiFetch<{ status: string }>("/api/autotranslate", {
@@ -444,11 +460,13 @@ export const api = {
       token,
     }),
 
-  deleteChannelAutoTranslate: (token: string, channelId: string) =>
-    apiFetch<{ status: string }>("/api/autotranslate/" + channelId, {
+  deleteChannelAutoTranslate: (token: string, channelId: string) => {
+    if (!channelId) throw new Error("channelId is required");
+    return apiFetch<{ status: string }>("/api/autotranslate/" + channelId, {
       method: "DELETE",
       token,
-    }),
+    });
+  },
 
   // Analytics
   getAnalyticsSummary: (token: string, days: number = 7) =>
