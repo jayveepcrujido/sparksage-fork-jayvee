@@ -77,6 +77,19 @@ export default function PluginsPage() {
     }
   };
 
+  const handleReload = async (id: string) => {
+    if (!token) return;
+    setActionId(id);
+    try {
+      await api.reloadPlugin(token, id);
+      toast.success("Plugin reloaded successfully");
+    } catch (err) {
+      toast.error("Failed to reload plugin");
+    } finally {
+      setActionId(null);
+    }
+  };
+
   if (loading && plugins.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
