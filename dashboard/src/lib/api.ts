@@ -11,9 +11,12 @@ async function apiFetch<T>(
   const { token, headers: customHeaders, ...rest } = options;
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...((customHeaders as Record<string, string>) || {}),
   };
+
+  if (!headers["Content-Type"] && !(rest.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -474,6 +477,14 @@ export const api = {
     apiFetch<{ status: string }>(`/api/plugins/reload/${name}`, {
       method: "POST",
       token,
+    }),
+
+  uploadPlugin: (token: string, formData: FormData) =>
+    apiFetch<{ status: string }>("/api/plugins/upload", {
+      method: "POST",
+      body: formData,
+      token,
+      headers: {}, // Explicitly set headers to empty object to prevent default Content-Type: application/json
     }),
 
   // Guild Config
