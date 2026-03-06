@@ -14,6 +14,8 @@ export default function PluginsPage() {
   const [loading, setLoading] = useState(true);
   const [plugins, setPlugins] = useState<PluginItem[]>([]);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const token = (session as { accessToken?: string })?.accessToken;
 
@@ -48,16 +50,30 @@ export default function PluginsPage() {
     }
   };
 
-  const handleReload = async (id: string) => {
-    if (!token) return;
-    setActionId(id);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setSelectedFile(event.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!token || !selectedFile) {
+      toast.error("No file selected.");
+      return;
+    }
+
+    setIsUploading(true);
     try {
-      await api.reloadPlugin(token, id);
-      toast.success("Plugin reloaded successfully");
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      await api.uploadPlugin(token, formData); // This API call needs to be defined
+      toast.success("Plugin uploaded and installed successfully!");
+      fetchPlugins();
     } catch (err) {
-      toast.error("Failed to reload plugin");
+      toast.error("Failed to upload plugin.");
     } finally {
-      setActionId(null);
+      setIsUploading(false);
+      setSelectedFile(null);
     }
   };
 
@@ -76,10 +92,54 @@ export default function PluginsPage() {
           <h1 className="text-2xl font-bold">Bot Plugins</h1>
           <p className="text-muted-foreground">Extend SparkSage with community-contributed features.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchPlugins} disabled={loading}>
-          <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Scan Directory
-        </Button>
+        <div className="flex items-center gap-2">
+          <input
+            type="file"
+            accept=".zip"
+            ref={(input) => {
+              if (input) {
+                // To allow re-uploading the same file after an error or successful upload
+                input.onclick = null;
+                input.onclick = () => (input.value = '');
+              }
+            }}
+            onChange={handleFileChange}
+            style={{ display: "none" }}
+            id="plugin-upload-input"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => document.getElementById("plugin-upload-input")?.click()}
+            disabled={loading || isUploading}
+          >
+            {isUploading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Puzzle className="mr-2 h-4 w-4" />
+            )}
+            Upload Plugin
+          </Button>
+          {selectedFile && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleUpload}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <span className="mr-2">🚀</span>
+              )}
+              {selectedFile.name} Upload
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={fetchPlugins} disabled={loading}>
+            <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Scan Directory
+          </Button>
+        </div>
       </div>
 
       {plugins.length === 0 ? (
