@@ -44,6 +44,7 @@ const settingsSchema = z.object({
   MOD_LOG_CHANNEL_ID: z.string(),
   MODERATION_SENSITIVITY: z.string(),
   TRANSLATE_ENABLED: z.boolean(),
+  AUTO_TRANSLATE_ENABLED: z.boolean(),
   RATE_LIMIT_USER: z.number().min(1).max(60),
   RATE_LIMIT_GUILD: z.number().min(1).max(200),
 });
@@ -77,6 +78,7 @@ const DEFAULTS: SettingsForm = {
   MOD_LOG_CHANNEL_ID: "",
   MODERATION_SENSITIVITY: "medium",
   TRANSLATE_ENABLED: true,
+  AUTO_TRANSLATE_ENABLED: false,
   RATE_LIMIT_USER: 5,
   RATE_LIMIT_GUILD: 20,
 };
@@ -121,7 +123,7 @@ export default function SettingsPage() {
           if (config[key] !== undefined) {
             if (key === "MAX_TOKENS" || key === "RATE_LIMIT_USER" || key === "RATE_LIMIT_GUILD") {
               mapped[key] = Number(config[key]);
-            } else if (key === "DIGEST_ENABLED" || key === "MODERATION_ENABLED" || key === "TRANSLATE_ENABLED") {
+            } else if (key === "DIGEST_ENABLED" || key === "MODERATION_ENABLED" || key === "TRANSLATE_ENABLED" || key === "AUTO_TRANSLATE_ENABLED") {
               mapped[key] = config[key] === "true";
             } else {
               (mapped as any)[key] = config[key];
@@ -457,6 +459,29 @@ export default function SettingsPage() {
                   </RadioGroup>
                   <p className="text-xs text-muted-foreground">
                     Allows users to use the /translate command to translate text between languages using AI.
+                  </p>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <Label>Enable Global Auto-Translation</Label>
+                  <RadioGroup
+                    value={form.watch("AUTO_TRANSLATE_ENABLED") ? "true" : "false"}
+                    onValueChange={(val) => form.setValue("AUTO_TRANSLATE_ENABLED", val === "true")}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="autotranslate-on" />
+                      <Label htmlFor="autotranslate-on" className="font-normal text-xs cursor-pointer">Enabled</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="autotranslate-off" />
+                      <Label htmlFor="autotranslate-off" className="font-normal text-xs cursor-pointer">Disabled</Label>
+                    </div>
+                  </RadioGroup>
+                  <p className="text-xs text-muted-foreground">
+                    Enables the auto-translation engine bot-wide. Once enabled, you can configure target languages for specific channels in the "Channel Tuning" page.
                   </p>
                 </div>
               </CardContent>
