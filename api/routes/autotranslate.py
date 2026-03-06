@@ -38,7 +38,7 @@ async def get_autotranslate_setting(
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Auto-translate setting not found")
 
 
-@router.post("/", response_model=AutoTranslateSetting)
+@router.post("", response_model=AutoTranslateSetting)
 async def set_autotranslate_setting(
     setting_data: AutoTranslateSettingCreate,
     current_user: Annotated[dict, Depends(get_current_user)]
