@@ -3,6 +3,7 @@ from __future__ import annotations
 import config
 import providers
 import db as database
+import httpx # Added import
 from utils.rate_limiter import limiter
 
 MAX_HISTORY = 20
@@ -115,3 +116,45 @@ async def ask_ai(
         return response, provider_name
     except RuntimeError as e:
         return f"Sorry, all AI providers failed: {e}", "none"
+
+
+async def vector_search(user_id: str, query: str, limit: int = 5, min_score: float = 0.7) -> list[dict]:
+    """Perform a vector search against the user's conversation history."""
+    if not config.VECTOR_DB_URL:
+        return []
+
+    # Get embeddings for the query
+    embedding = await providers.get_embedding(query)
+    if not embedding:
+        return []
+
+    # Perform vector search
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(
+                f"{config.VECTOR_DB_URL}/query",
+                json={
+                    "user_id": user_id,
+                    "embedding": embedding,
+                    "limit": limit,
+                    "min_score": min_score,
+                },
+                timeout=config.VECTOR_DB_TIMEOUT,
+            )
+            r.raise_for_status()  # Raise an exception for 4xx/5xx responses
+            
+            response_data = r.json()
+            # Assuming the vector DB returns results under a 'results' key
+            search_results = response_data.get("results", []) 
+            
+            return search_results # Return the actual results
+
+    except httpx.HTTPStatusError as e:
+        print(f"Error response from vector DB: {e.response.status_code} - {e.response.text}")
+        return []
+    except httpx.RequestError as e:
+        print(f"Network error during vector search: {e}")
+        return []
+    except Exception as e:
+        print(f"Unexpected error during vector search: {e}")
+        return []
