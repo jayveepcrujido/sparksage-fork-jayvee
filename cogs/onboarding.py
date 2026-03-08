@@ -51,7 +51,9 @@ class Onboarding(commands.Cog):
         await database.log_analytics(
             event_type="onboarding",
             guild_id=str(member.guild.id),
-            user_id=str(member.id)
+            guild_name=member.guild.name,
+            user_id=str(member.id),
+            user_name=member.display_name
         )
 
         if not settings["enabled"] and not settings["dm_enabled"]:

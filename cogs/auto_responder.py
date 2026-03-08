@@ -44,7 +44,17 @@ class AutoResponder(commands.Cog):
             if triggered:
                 try:
                     await message.channel.send(response_text)
-                    # Log to analytics if needed, but maybe too noisy for simple auto-responses
+                    
+                    # Log to analytics
+                    await database.log_analytics(
+                        event_type="auto_response",
+                        guild_id=guild_id,
+                        guild_name=message.guild.name,
+                        channel_id=str(message.channel.id),
+                        user_id=str(message.author.id),
+                        user_name=message.author.display_name
+                    )
+                    
                     return # Only one response per message to avoid spam
                 except Exception as e:
                     print(f"[AUTO-RESPONDER] Error sending response: {e}")

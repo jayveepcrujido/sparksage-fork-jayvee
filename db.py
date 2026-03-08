@@ -218,8 +218,22 @@ async def init_db():
     # Analytics migration
     try:
         await db.execute("ALTER TABLE analytics ADD COLUMN input_tokens INTEGER")
+    except:
+        pass
+    try:
         await db.execute("ALTER TABLE analytics ADD COLUMN output_tokens INTEGER")
+    except:
+        pass
+    try:
         await db.execute("ALTER TABLE analytics ADD COLUMN estimated_cost REAL")
+    except:
+        pass
+    try:
+        await db.execute("ALTER TABLE analytics ADD COLUMN user_name TEXT")
+    except:
+        pass
+    try:
+        await db.execute("ALTER TABLE analytics ADD COLUMN guild_name TEXT")
     except:
         pass
 
