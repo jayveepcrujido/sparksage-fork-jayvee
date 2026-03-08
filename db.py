@@ -121,17 +121,32 @@ async def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_type  TEXT NOT NULL,
             guild_id    TEXT,
+            guild_name  TEXT,
             channel_id  TEXT,
             user_id     TEXT,
+            user_name   TEXT,
             provider    TEXT,
             tokens_used INTEGER,
             latency_ms  INTEGER,
+            input_tokens INTEGER,
+            output_tokens INTEGER,
+            estimated_cost REAL,
             created_at  TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
         CREATE TABLE IF NOT EXISTS plugins (
             name    TEXT PRIMARY KEY,
             enabled INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS auto_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            keyword TEXT NOT NULL,
+            response TEXT NOT NULL,
+            match_type TEXT NOT NULL DEFAULT 'contains', -- 'exact' or 'contains'
+            is_case_sensitive INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
         INSERT OR IGNORE INTO wizard_state (id) VALUES (1);
@@ -203,8 +218,22 @@ async def init_db():
     # Analytics migration
     try:
         await db.execute("ALTER TABLE analytics ADD COLUMN input_tokens INTEGER")
+    except:
+        pass
+    try:
         await db.execute("ALTER TABLE analytics ADD COLUMN output_tokens INTEGER")
+    except:
+        pass
+    try:
         await db.execute("ALTER TABLE analytics ADD COLUMN estimated_cost REAL")
+    except:
+        pass
+    try:
+        await db.execute("ALTER TABLE analytics ADD COLUMN user_name TEXT")
+    except:
+        pass
+    try:
+        await db.execute("ALTER TABLE analytics ADD COLUMN guild_name TEXT")
     except:
         pass
 
@@ -349,11 +378,11 @@ async def clear_messages(channel_id: str):
     await db.commit()
 
 
-async def list_channels() -> list[dict]:
+async def list_channels(guild_id: str | None = None) -> list[dict]:
     """List all channels with message counts and code review status."""
     db = await get_db()
-    cursor = await db.execute(
-        """
+    
+    query = """
         SELECT 
             channel_id, 
             guild_id,
@@ -361,10 +390,19 @@ async def list_channels() -> list[dict]:
             MAX(created_at) as last_active,
             MAX(CASE WHEN category = 'code_review' THEN 1 ELSE 0 END) as has_code_review
         FROM conversations
+    """
+    params = []
+    
+    if guild_id:
+        query += " WHERE guild_id = ?"
+        params.append(guild_id)
+        
+    query += """
         GROUP BY channel_id, guild_id
         ORDER BY last_active DESC
-        """
-    )
+    """
+    
+    cursor = await db.execute(query, params)
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
 
@@ -605,7 +643,7 @@ async def set_guild_config(guild_id: str, key: str, value: str):
     """Set a per-guild config value."""
     db = await get_db()
     await db.execute(
-        "INSERT INTO guild_config (guild_id, key, value) VALUES (?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value",
+        "INSERT INTO guild_config (guild_id, key, value) VALUES (?, ?, ?) ON CONFLICT(guild_id, key) DO UPDATE SET value = excluded.value",
         (guild_id, key, value),
     )
     await db.commit()
@@ -833,8 +871,10 @@ async def delete_channel_autotranslate_setting(channel_id: str):
 async def log_analytics(
     event_type: str,
     guild_id: str | None = None,
+    guild_name: str | None = None,
     channel_id: str | None = None,
     user_id: str | None = None,
+    user_name: str | None = None,
     provider: str | None = None,
     tokens_used: int | None = None,
     latency_ms: int | None = None,
@@ -846,85 +886,101 @@ async def log_analytics(
     db = await get_db()
     await db.execute(
         """
-        INSERT INTO analytics (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO analytics (event_type, guild_id, guild_name, channel_id, user_id, user_name, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost),
+        (event_type, guild_id, guild_name, channel_id, user_id, user_name, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost),
     )
     await db.commit()
 
 
-async def get_analytics_summary(days: int = 7) -> dict:
+async def get_analytics_summary(days: int = 7, guild_id: str | None = None) -> dict:
     """Get summarized analytics for dashboard charts."""
     db = await get_db()
     
     # Events per day
-    cursor = await db.execute(
-        """
+    query_events = """
         SELECT date(created_at) as day, COUNT(*) as count
         FROM analytics
         WHERE created_at > datetime('now', ?)
-        GROUP BY day
-        ORDER BY day ASC
-        """,
-        (f"-{days} days",)
-    )
+    """
+    params_events = [f"-{days} days"]
+    if guild_id:
+        query_events += " AND guild_id = ?"
+        params_events.append(guild_id)
+    query_events += " GROUP BY day ORDER BY day ASC"
+    
+    cursor = await db.execute(query_events, params_events)
     daily_events = [{"day": r["day"], "count": r["count"]} for r in await cursor.fetchall()]
     
     # Provider distribution
-    cursor = await db.execute(
-        """
+    query_prov = """
         SELECT provider, COUNT(*) as count
         FROM analytics
         WHERE provider IS NOT NULL
-        GROUP BY provider
-        """
-    )
+    """
+    params_prov = []
+    if guild_id:
+        query_prov += " AND guild_id = ?"
+        params_prov.append(guild_id)
+    query_prov += " GROUP BY provider"
+    
+    cursor = await db.execute(query_prov, params_prov)
     provider_dist = [{"name": r["provider"], "value": r["count"]} for r in await cursor.fetchall()]
     
     # Top channels
-    cursor = await db.execute(
-        """
+    query_chan = """
         SELECT channel_id, COUNT(*) as count
         FROM analytics
         WHERE channel_id IS NOT NULL
-        GROUP BY channel_id
-        ORDER BY count DESC
-        LIMIT 5
-        """
-    )
+    """
+    params_chan = []
+    if guild_id:
+        query_chan += " AND guild_id = ?"
+        params_chan.append(guild_id)
+    query_chan += " GROUP BY channel_id ORDER BY count DESC LIMIT 5"
+    
+    cursor = await db.execute(query_chan, params_chan)
     top_channels = [{"id": r["channel_id"], "count": r["count"]} for r in await cursor.fetchall()]
     
     # Average latency
-    cursor = await db.execute(
-        """
+    query_lat = """
         SELECT date(created_at) as day, AVG(latency_ms) as avg_latency
         FROM analytics
         WHERE latency_ms IS NOT NULL AND created_at > datetime('now', ?)
-        GROUP BY day
-        ORDER BY day ASC
-        """,
-        (f"-{days} days",)
-    )
+    """
+    params_lat = [f"-{days} days"]
+    if guild_id:
+        query_lat += " AND guild_id = ?"
+        params_lat.append(guild_id)
+    query_lat += " GROUP BY day ORDER BY day ASC"
+    
+    cursor = await db.execute(query_lat, params_lat)
     latency_history = [{"day": r["day"], "latency": round(r["avg_latency"] or 0)} for r in await cursor.fetchall()]
 
     # Rate limited count
-    cursor = await db.execute(
-        "SELECT COUNT(*) as count FROM analytics WHERE event_type = 'rate_limited' AND created_at > datetime('now', ?)",
-        (f"-{days} days",)
-    )
+    query_rate = "SELECT COUNT(*) as count FROM analytics WHERE event_type = 'rate_limited' AND created_at > datetime('now', ?)"
+    params_rate = [f"-{days} days"]
+    if guild_id:
+        query_rate += " AND guild_id = ?"
+        params_rate.append(guild_id)
+        
+    cursor = await db.execute(query_rate, params_rate)
     total_rate_limited = (await cursor.fetchone())["count"]
 
     # Cost metrics
-    cursor = await db.execute(
-        """
+    query_cost = """
         SELECT provider, SUM(estimated_cost) as cost
         FROM analytics
         WHERE estimated_cost IS NOT NULL AND created_at > datetime('now', ?)
-        GROUP BY provider
-        """,
-        (f"-{days} days",)
-    )
+    """
+    params_cost = [f"-{days} days"]
+    if guild_id:
+        query_cost += " AND guild_id = ?"
+        params_cost.append(guild_id)
+    query_cost += " GROUP BY provider"
+    
+    cursor = await db.execute(query_cost, params_cost)
     cost_by_provider = {r["provider"]: r["cost"] for r in await cursor.fetchall()}
     
     total_cost = sum(cost_by_provider.values())
@@ -947,10 +1003,18 @@ async def set_plugin_enabled(name: str, enabled: bool):
     """Set whether a plugin is enabled."""
     db = await get_db()
     await db.execute(
-        "INSERT INTO plugins (name, enabled) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET enabled = excluded.enabled",
+        "INSERT INTO plugins (name, enabled) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET value = excluded.enabled",
         (name, int(enabled)),
     )
     await db.commit()
+
+
+async def delete_plugin_state(name: str):
+    """Remove a plugin from the database."""
+    db = await get_db()
+    await db.execute("DELETE FROM plugins WHERE name = ?", (name,))
+    await db.commit()
+
 
 
 async def get_enabled_plugins() -> list[str]:
@@ -967,3 +1031,91 @@ async def get_plugin_states() -> dict[str, bool]:
     cursor = await db.execute("SELECT name, enabled FROM plugins")
     rows = await cursor.fetchall()
     return {r["name"]: bool(r["enabled"]) for r in rows}
+
+
+# --- Auto-responder helpers ---
+
+
+async def add_auto_response(guild_id: str, keyword: str, response: str, match_type: str = "contains", is_case_sensitive: bool = False):
+    """Add a new auto-response."""
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO auto_responses (guild_id, keyword, response, match_type, is_case_sensitive) VALUES (?, ?, ?, ?, ?)",
+        (guild_id, keyword, response, match_type, int(is_case_sensitive)),
+    )
+    await db.commit()
+
+
+async def list_auto_responses(guild_id: str | None = None) -> list[dict]:
+    """List auto-responses, optionally filtered by guild."""
+    db = await get_db()
+    if guild_id:
+        cursor = await db.execute("SELECT * FROM auto_responses WHERE guild_id = ? ORDER BY id DESC", (guild_id,))
+    else:
+        cursor = await db.execute("SELECT * FROM auto_responses ORDER BY id DESC")
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def update_auto_response(response_id: int, keyword: str, response: str, match_type: str, is_case_sensitive: bool, guild_id: str | None = None):
+    """Update an auto-response."""
+    db = await get_db()
+    query = "UPDATE auto_responses SET keyword = ?, response = ?, match_type = ?, is_case_sensitive = ? WHERE id = ?"
+    params = [keyword, response, match_type, int(is_case_sensitive), response_id]
+    
+    if guild_id:
+        query += " AND guild_id = ?"
+        params.append(guild_id)
+        
+    await db.execute(query, params)
+    await db.commit()
+
+
+async def delete_auto_response(response_id: int, guild_id: str | None = None):
+    """Delete an auto-response."""
+    db = await get_db()
+    if guild_id:
+        await db.execute("DELETE FROM auto_responses WHERE id = ? AND guild_id = ?", (response_id, guild_id))
+    else:
+        await db.execute("DELETE FROM auto_responses WHERE id = ?", (response_id,))
+    await db.commit()
+
+
+async def get_rate_limit_stats(limit: int = 10) -> dict:
+    """Get rate limiting statistics from analytics."""
+    db = await get_db()
+    
+    # Per-user usage (last 24h)
+    cursor = await db.execute(
+        """
+        SELECT user_id, user_name, COUNT(*) as count
+        FROM analytics
+        WHERE user_id IS NOT NULL AND event_type NOT IN ('rate_limited', 'moderation_check')
+        AND created_at > datetime('now', '-1 day')
+        GROUP BY user_id
+        ORDER BY count DESC
+        LIMIT ?
+        """,
+        (limit,)
+    )
+    user_usage = [{"user_id": r["user_id"], "user_name": r["user_name"], "count": r["count"]} for r in await cursor.fetchall()]
+    
+    # Per-guild usage (last 24h)
+    cursor = await db.execute(
+        """
+        SELECT guild_id, guild_name, COUNT(*) as count
+        FROM analytics
+        WHERE guild_id IS NOT NULL AND event_type NOT IN ('rate_limited', 'moderation_check')
+        AND created_at > datetime('now', '-1 day')
+        GROUP BY guild_id
+        ORDER BY count DESC
+        LIMIT ?
+        """,
+        (limit,)
+    )
+    guild_usage = [{"guild_id": r["guild_id"], "guild_name": r["guild_name"], "count": r["count"]} for r in await cursor.fetchall()]
+    
+    return {
+        "user_usage": user_usage,
+        "guild_usage": guild_usage
+    }

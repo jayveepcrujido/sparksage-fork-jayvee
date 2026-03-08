@@ -2,11 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Puzzle, RefreshCcw, ExternalLink } from "lucide-react";
+import { Loader2, Puzzle, RefreshCcw, ExternalLink, Trash2 } from "lucide-react";
 import { api, PluginItem } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export default function PluginsPage() {
@@ -16,6 +24,9 @@ export default function PluginsPage() {
   const [actionId, setActionId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  
+  const [uninstallId, setUninstallId] = useState<string | null>(null);
+  const [isUninstalling, setIsUninstalling] = useState(false);
 
   const token = (session as { accessToken?: string })?.accessToken;
 
@@ -87,6 +98,22 @@ export default function PluginsPage() {
       toast.error("Failed to reload plugin");
     } finally {
       setActionId(null);
+    }
+  };
+
+  const handleUninstall = async () => {
+    if (!token || !uninstallId) return;
+    
+    setIsUninstalling(true);
+    try {
+      await api.deletePlugin(token, uninstallId);
+      toast.success("Plugin uninstalled and files deleted");
+      setUninstallId(null);
+      fetchPlugins();
+    } catch (err) {
+      toast.error("Failed to uninstall plugin");
+    } finally {
+      setIsUninstalling(false);
     }
   };
 
@@ -205,12 +232,42 @@ export default function PluginsPage() {
                       <RefreshCcw className="h-4 w-4" />
                     </Button>
                   )}
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setUninstallId(plugin.id)}
+                    disabled={!!actionId}
+                    title="Uninstall Plugin"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <Dialog open={!!uninstallId} onOpenChange={(open) => !open && setUninstallId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Uninstall Plugin?</DialogTitle>
+            <DialogDescription>
+              This will unload the plugin from the bot and <strong>permanently delete</strong> its files from the server. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUninstallId(null)} disabled={isUninstalling}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleUninstall} disabled={isUninstalling}>
+              {isUninstalling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Uninstall & Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="bg-primary/5 border-primary/20">
         <CardHeader className="pb-2">

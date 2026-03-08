@@ -84,16 +84,18 @@ export interface MessageItem {
   created_at: string;
 }
 
+export interface DiscordGuild {
+  id: string;
+  name: string;
+  member_count: number;
+}
+
 export interface BotStatus {
   online: boolean;
   username: string | null;
   latency_ms: number | null;
   guild_count: number;
-  guilds: Array<{
-    id: string;
-    name: string;
-    member_count: number;
-  }>;
+  guilds: DiscordGuild[];
 }
 
 export interface BotStats {
@@ -188,7 +190,7 @@ export interface PluginItem {
   enabled: boolean;
 }
 
-export interface RoleItem {
+export interface DiscordRole {
   id: string;
   name: string;
   color: string;
@@ -196,6 +198,16 @@ export interface RoleItem {
 
 export interface CommandsResponse {
   commands: string[];
+}
+
+export interface AutoResponse {
+  id: number;
+  guild_id: string;
+  keyword: string;
+  response: string;
+  match_type: "exact" | "contains";
+  is_case_sensitive: boolean;
+  created_at: string;
 }
 
 export const api = {
@@ -251,13 +263,22 @@ export const api = {
 
   getBotStats: (token: string) =>
     apiFetch<BotStats>("/api/bot/stats", { token }),
+getChannels: (token: string) =>
+  apiFetch<{ channels: DiscordChannel[] }>("/api/bot/channels", { token }),
 
-  getChannels: (token: string) =>
-    apiFetch<{ channels: DiscordChannel[] }>("/api/bot/channels", { token }),
+getGuildChannels: (token: string, guildId: string) =>
+  apiFetch<{ channels: DiscordChannel[] }>(`/api/guilds/${guildId}/channels`, { token }),
 
+getGuildRoles: (token: string, guildId: string) =>
+  apiFetch<{ roles: DiscordRole[] }>(`/api/guilds/${guildId}/roles`, { token }),
+
+// Plugins
   // Conversations
-  getConversations: (token: string) =>
-    apiFetch<{ channels: ChannelItem[] }>("/api/conversations", { token }),
+  getConversations: (token: string, guildId?: string) =>
+    apiFetch<{ channels: ChannelItem[] }>(
+      "/api/conversations" + (guildId ? `?guild_id=${guildId}` : ""),
+      { token },
+    ),
 
   getConversation: (token: string, channelId: string) =>
     apiFetch<{
@@ -398,7 +419,7 @@ export const api = {
     ),
 
   getRoles: (token: string, guildId: string) =>
-    apiFetch<{ roles: RoleItem[] }>(`/api/permissions/roles/${guildId}`, {
+    apiFetch<{ roles: DiscordRole[] }>(`/api/permissions/roles/${guildId}`, {
       token,
     }),
 
@@ -469,14 +490,21 @@ export const api = {
   },
 
   // Analytics
-  getAnalyticsSummary: (token: string, days: number = 7) =>
-    apiFetch<AnalyticsSummary>(`/api/analytics/summary?days=${days}`, {
-      token,
-    }),
+  getAnalyticsSummary: (token: string, days: number = 7, guildId?: string) =>
+    apiFetch<AnalyticsSummary>(
+      `/api/analytics/summary?days=${days}${guildId ? `&guild_id=${guildId}` : ""}`,
+      { token },
+    ),
 
   getAnalyticsHistory: (token: string, limit: number = 100) =>
     apiFetch<{ history: AnalyticsEvent[] }>(
       `/api/analytics/history?limit=${limit}`,
+      { token },
+    ),
+
+  getRateLimitAnalytics: (token: string, limit: number = 10) =>
+    apiFetch<{ user_usage: any[]; guild_usage: any[] }>(
+      `/api/analytics/rate-limits?limit=${limit}`,
       { token },
     ),
 
@@ -494,6 +522,12 @@ export const api = {
   reloadPlugin: (token: string, name: string) =>
     apiFetch<{ status: string }>(`/api/plugins/reload/${name}`, {
       method: "POST",
+      token,
+    }),
+
+  deletePlugin: (token: string, name: string) =>
+    apiFetch<{ status: string }>(`/api/plugins/${name}`, {
+      method: "DELETE",
       token,
     }),
 
@@ -522,4 +556,52 @@ export const api = {
       body: JSON.stringify({ values }),
       token,
     }),
+
+  // Auto-Responses
+  getAutoResponses: (token: string, guildId?: string) =>
+    apiFetch<{ auto_responses: AutoResponse[] }>(
+      `/api/auto-responses${guildId ? `?guild_id=${guildId}` : ""}`,
+      { token },
+    ),
+
+  createAutoResponse: (
+    token: string,
+    data: {
+      guild_id: string;
+      keyword: string;
+      response: string;
+      match_type: string;
+      is_case_sensitive: boolean;
+    },
+  ) =>
+    apiFetch<{ status: string }>("/api/auto-responses", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  updateAutoResponse: (
+    token: string,
+    id: number,
+    data: {
+      keyword: string;
+      response: string;
+      match_type: string;
+      is_case_sensitive: boolean;
+    },
+  ) =>
+    apiFetch<{ status: string }>(`/api/auto-responses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteAutoResponse: (token: string, id: number, guildId?: string) =>
+    apiFetch<{ status: string }>(
+      `/api/auto-responses/${id}${guildId ? `?guild_id=${guildId}` : ""}`,
+      {
+        method: "DELETE",
+        token,
+      },
+    ),
 };

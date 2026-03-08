@@ -6,6 +6,7 @@ import providers
 import db as database
 import json
 from utils.permissions import has_command_permission
+from utils.rate_limiter import limiter
 
 def _robust_json_loads(text: str):
     """
@@ -49,6 +50,11 @@ class TranslateCog(commands.Cog):
         else:
             enabled, target_language = False, None
         if not enabled or not target_language:
+            return
+
+        # Check rate limit (silently return for auto-translate)
+        is_limited, _ = limiter.is_rate_limited(str(message.author.id), str(message.guild.id) if message.guild else None)
+        if is_limited:
             return
 
         # Check if the message starts with the bot prefix or is a command to avoid translating commands
@@ -127,6 +133,18 @@ class TranslateCog(commands.Cog):
             await interaction.response.send_message("Translation feature is currently disabled.", ephemeral=True)
             return
 
+        # Check rate limit
+        is_limited, reason = limiter.is_rate_limited(str(interaction.user.id), str(interaction.guild_id) if interaction.guild else None)
+        if is_limited:
+            await database.log_analytics(
+                event_type="rate_limited",
+                guild_id=str(interaction.guild_id) if interaction.guild else None,
+                channel_id=str(interaction.channel_id),
+                user_id=str(interaction.user.id)
+            )
+            await interaction.response.send_message(reason, ephemeral=True)
+            return
+
         await interaction.response.defer()
         
         try:
@@ -198,10 +216,6 @@ class TranslateCog(commands.Cog):
             print(f"[TRANSLATE] Error: {e}")
             await interaction.followup.send("Sorry, I encountered an error while translating.")
 
-    # Removed do_translate as it's now integrated via ask_ai
-
-    # Removed do_translate as it's now integrated via ask_ai
-
     autotranslate_group = app_commands.Group(name="autotranslate", description="Manage channel auto-translation settings")
 
     @autotranslate_group.command(name="set", description="Enable auto-translation for this channel to a target language")
@@ -251,4 +265,3 @@ class TranslateCog(commands.Cog):
 async def setup(bot):
     cog = TranslateCog(bot)
     await bot.add_cog(cog)
-

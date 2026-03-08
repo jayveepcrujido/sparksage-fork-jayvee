@@ -17,8 +17,9 @@ import {
   Cell, 
   Legend 
 } from "recharts";
-import { Loader2, TrendingUp, Cpu, Hash, Activity, Clock, List, ShieldAlert, DollarSign, CreditCard } from "lucide-react";
+import { Loader2, TrendingUp, Cpu, Hash, Activity, Clock, List, ShieldAlert, DollarSign, CreditCard, Globe } from "lucide-react";
 import { api, AnalyticsSummary, AnalyticsEvent, DiscordChannel } from "@/lib/api";
+import { useGuild } from "@/components/providers/guild-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,41 +29,55 @@ const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 
 export default function AnalyticsPage() {
   const { data: session } = useSession();
+  const { selectedGuildId, selectedGuild } = useGuild();
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [history, setHistory] = useState<AnalyticsEvent[]>([]);
+  const [rateLimitStats, setRateLimitStats] = useState<{ user_usage: any[], guild_usage: any[] }>({ user_usage: [], guild_usage: [] });
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [days, setDays] = useState(7);
 
   const token = (session as { accessToken?: string })?.accessToken;
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !selectedGuildId) return;
     
     setLoading(true);
     Promise.all([
-      api.getAnalyticsSummary(token, days),
-      api.getAnalyticsHistory(token, 50),
-      api.getChannels(token).catch(() => ({ channels: [] }))
+      api.getAnalyticsSummary(token, days, selectedGuildId),
+      api.getAnalyticsHistory(token, 50), // History might still be global or filterable later
+      api.getRateLimitAnalytics(token, 10),
+      api.getGuildChannels(token, selectedGuildId).catch(() => ({ channels: [] }))
     ])
-      .then(([s, h, c]) => {
+      .then(([s, h, r, c]) => {
         setSummary(s);
-        setHistory(h.history);
+        setHistory(h.history.filter(e => !selectedGuildId || e.guild_id === selectedGuildId));
+        setRateLimitStats(r);
         setChannels(c.channels);
       })
       .catch((err) => {
         console.error("Analytics fetch error:", err);
-        toast.error("Failed to load analytics. Ensure the bot is running.");
+        toast.error("Failed to load analytics.");
       })
       .finally(() => setLoading(false));
-  }, [token, days]);
+  }, [token, days, selectedGuildId]);
+
+  if (!selectedGuildId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Globe className="h-12 w-12 text-muted-foreground/20 mb-4" />
+        <h2 className="text-xl font-semibold">No Server Selected</h2>
+        <p className="text-muted-foreground">Please select a server from the sidebar to view its insights.</p>
+      </div>
+    );
+  }
 
   if (loading && !summary) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center space-y-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Loading insights...</p>
+          <p className="text-muted-foreground">Loading insights for {selectedGuild?.name}...</p>
         </div>
       </div>
     );
@@ -81,7 +96,7 @@ export default function AnalyticsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Analytics</h1>
-          <p className="text-muted-foreground text-sm">Detailed metrics on bot performance and usage.</p>
+          <p className="text-muted-foreground text-sm">Insights for <strong>{selectedGuild?.name}</strong></p>
         </div>
         <div className="flex gap-2 bg-muted p-1 rounded-lg w-fit">
           {[7, 30, 90].map(d => (
@@ -99,9 +114,10 @@ export default function AnalyticsPage() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+        <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="costs">Costs</TabsTrigger>
+          <TabsTrigger value="rate-limits">Rate Limits</TabsTrigger>
           <TabsTrigger value="history">Event History</TabsTrigger>
         </TabsList>
 
@@ -112,7 +128,7 @@ export default function AnalyticsPage() {
                 <TrendingUp className="h-12 w-12 text-muted-foreground/20 mb-4" />
                 <h3 className="text-lg font-medium">No Data Available Yet</h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                  Analytics events will appear here once users interact with SparkSage in your Discord server.
+                  Analytics events for {selectedGuild?.name} will appear here once users interact with the bot.
                 </p>
               </CardContent>
             </Card>
@@ -143,34 +159,34 @@ export default function AnalyticsPage() {
                         ? Math.round(summary.latency_history.reduce((acc, curr) => acc + curr.latency, 0) / summary.latency_history.length) 
                         : 0}ms
                     </div>
-                                <p className="text-xs text-muted-foreground">System response time</p>
-                              </CardContent>
-                            </Card>
-                    
-                            <Card>
-                              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                <CardTitle className="text-sm font-medium">Rate Limited</CardTitle>
-                                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
-                              </CardHeader>
-                              <CardContent>
-                                <div className="text-2xl font-bold">{summary?.total_rate_limited || 0}</div>
-                                            <p className="text-xs text-muted-foreground">Requests blocked by quota</p>
-                                          </CardContent>
-                                        </Card>
-                                
-                                        <Card>
-                                          <CardHeader className="flex flex-row items-center justify-between pb-2">
-                                            <CardTitle className="text-sm font-medium">Estimated Cost</CardTitle>
-                                            <DollarSign className="h-4 w-4 text-muted-foreground" />
-                                          </CardHeader>
-                                          <CardContent>
-                                            <div className="text-2xl font-bold">${(summary?.total_cost ?? 0).toFixed(4)}</div>
-                                            <p className="text-xs text-muted-foreground">Approximate API spend</p>
-                                          </CardContent>
-                                        </Card>
-                                      </div>
-                                
-                                  <div className="grid gap-6 md:grid-cols-2">
+                    <p className="text-xs text-muted-foreground">System response time</p>
+                  </CardContent>
+                </Card>
+        
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Rate Limited</CardTitle>
+                    <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{summary?.total_rate_limited || 0}</div>
+                    <p className="text-xs text-muted-foreground">Blocked requests</p>
+                  </CardContent>
+                </Card>
+        
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Estimated Cost</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">${(summary?.total_cost ?? 0).toFixed(4)}</div>
+                    <p className="text-xs text-muted-foreground">Approximate API spend</p>
+                  </CardContent>
+                </Card>
+              </div>
+        
+              <div className="grid gap-6 md:grid-cols-2">
                 {/* Activity Line Chart */}
                 <Card>
                   <CardHeader>
@@ -276,7 +292,7 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <CreditCard className="h-4 w-4 text-emerald-500" /> Cost by Provider
                 </CardTitle>
-                <CardDescription>Estimated spend per AI service</CardDescription>
+                <CardDescription>Estimated spend for {selectedGuild?.name}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -307,7 +323,7 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-blue-500" /> Spending Projection
                 </CardTitle>
-                <CardDescription>Projected costs based on current usage</CardDescription>
+                <CardDescription>Projected costs based on current server usage</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
@@ -332,13 +348,125 @@ export default function AnalyticsPage() {
           </div>
         </TabsContent>
 
+        <TabsContent value="rate-limits" className="space-y-6 mt-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Top User Activity (24h)</CardTitle>
+                <CardDescription>Most active users across all servers</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {rateLimitStats.user_usage.length > 0 && (
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={rateLimitStats.user_usage.slice(0, 5)} layout="vertical" margin={{ left: 60 }}>
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="user_name" 
+                          type="category" 
+                          fontSize={11} 
+                          width={100}
+                          tickFormatter={(val) => val || "Unknown"}
+                        />
+                        <Tooltip cursor={{fill: 'transparent'}} />
+                        <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                <div className="relative overflow-x-auto rounded-md border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-muted text-muted-foreground text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">User</th>
+                        <th className="px-4 py-3 font-medium">Requests</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rateLimitStats.user_usage.length === 0 ? (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground italic">No usage data.</td>
+                        </tr>
+                      ) : (
+                        rateLimitStats.user_usage.map((u, i) => (
+                          <tr key={i} className="hover:bg-muted/50">
+                            <td className="px-4 py-3">
+                              <div className="font-medium">{u.user_name || "Unknown User"}</div>
+                              <div className="text-[10px] text-muted-foreground font-mono">{u.user_id}</div>
+                            </td>
+                            <td className="px-4 py-3 font-medium">{u.count}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Top Server Activity (24h)</CardTitle>
+                <CardDescription>Servers with highest interaction volume</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {rateLimitStats.guild_usage.length > 0 && (
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={rateLimitStats.guild_usage.slice(0, 5)} layout="vertical" margin={{ left: 60 }}>
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="guild_name" 
+                          type="category" 
+                          fontSize={11} 
+                          width={100}
+                          tickFormatter={(val) => val || "Unknown"}
+                        />
+                        <Tooltip cursor={{fill: 'transparent'}} />
+                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+                <div className="relative overflow-x-auto rounded-md border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-muted text-muted-foreground text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Server</th>
+                        <th className="px-4 py-3 font-medium">Requests</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rateLimitStats.guild_usage.length === 0 ? (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground italic">No usage data.</td>
+                        </tr>
+                      ) : (
+                        rateLimitStats.guild_usage.map((g, i) => (
+                          <tr key={i} className="hover:bg-muted/50">
+                            <td className="px-4 py-3">
+                              <div className="font-medium">{g.guild_name || "Unknown Server"}</div>
+                              <div className="text-[10px] text-muted-foreground font-mono">{g.guild_id}</div>
+                            </td>
+                            <td className="px-4 py-3 font-medium">{g.count}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="history" className="mt-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <List className="h-4 w-4" /> Recent Events
               </CardTitle>
-              <CardDescription>The last 50 tracked bot interactions</CardDescription>
+              <CardDescription>The last 50 interactions in {selectedGuild?.name}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="relative overflow-x-auto rounded-md border">
@@ -355,7 +483,7 @@ export default function AnalyticsPage() {
                   <tbody className="divide-y">
                     {history.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground italic">No events recorded yet.</td>
+                        <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground italic">No events recorded for this server yet.</td>
                       </tr>
                     ) : (
                       history.map((event) => (

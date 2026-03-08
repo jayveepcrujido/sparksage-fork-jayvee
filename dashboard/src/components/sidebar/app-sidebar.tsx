@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
+import { GuildSelector } from "./guild-selector";
 
 const NAV_ITEMS = [
   { title: "Overview", href: "/dashboard", icon: LayoutDashboard },
@@ -43,6 +44,7 @@ const NAV_ITEMS = [
   { title: "Onboarding", href: "/dashboard/onboarding", icon: UserPlus },
   { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
   { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
+  { title: "Auto-Responder", href: "/dashboard/auto-responder", icon: MessageSquare },
   { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
 ];
 
@@ -51,23 +53,46 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center justify-between px-2 py-1">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Zap className="h-4 w-4" />
-            </div>
-            <span className="font-semibold">SparkSage</span>
-          </div>
+      <SidebarHeader className="border-b h-16 justify-center">
+        <div className="flex items-center gap-2 px-1">
+          <GuildSelector />
           <ModeToggle />
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
+          <SidebarGroupLabel>Global Configuration</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {NAV_ITEMS.map((item) => (
+              {NAV_ITEMS.slice(0, 4).map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href}>
+                    <Link href={item.href}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/dashboard/settings"}>
+                  <Link href="/dashboard/settings">
+                    <Settings className="h-4 w-4" />
+                    <span>Global Settings</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Server Settings</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {NAV_ITEMS.filter(item => 
+                ["Channel Tuning", "Onboarding", "Conversations", "FAQs", "Permissions", "Auto-Responder"].includes(item.title)
+              ).map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={pathname === item.href}>
                     <Link href={item.href}>

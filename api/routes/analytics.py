@@ -7,8 +7,8 @@ import db
 router = APIRouter()
 
 @router.get("/summary")
-async def get_analytics_summary(days: int = 7, user: dict = Depends(get_current_user)):
-    summary = await db.get_analytics_summary(days)
+async def get_analytics_summary(days: int = 7, guild_id: str | None = None, user: dict = Depends(get_current_user)):
+    summary = await db.get_analytics_summary(days, guild_id)
     return summary
 
 @router.get("/history")
@@ -20,3 +20,8 @@ async def get_analytics_history(limit: int = 100, user: dict = Depends(get_curre
     )
     rows = await cursor.fetchall()
     return {"history": [dict(r) for r in rows]}
+
+@router.get("/rate-limits")
+async def get_rate_limit_analytics(limit: int = 10, user: dict = Depends(get_current_user)):
+    stats = await db.get_rate_limit_stats(limit)
+    return stats

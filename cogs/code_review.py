@@ -46,6 +46,7 @@ class CodeReview(commands.Cog):
                 system_prompt=system_prompt,
                 category="code_review",
                 guild_id=interaction.guild_id,
+                guild_name=interaction.guild.name if interaction.guild else None,
                 user_id=interaction.user.id
             )
 

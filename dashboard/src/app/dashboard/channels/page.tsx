@@ -2,26 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Sparkles, Trash2, Plus, MessageSquare, Cpu, Hash, Globe } from "lucide-react"; // Add Globe
-import { api, BotStatus, ChannelPrompt, ChannelProviderItem, DiscordChannel, ProvidersResponse } from "@/lib/api";
+import { Loader2, Sparkles, Trash2, Plus, MessageSquare, Cpu, Hash, Globe } from "lucide-react";
+import { api, ChannelPrompt, ChannelProviderItem, DiscordChannel, ProvidersResponse } from "@/lib/api";
+import { useGuild } from "@/components/providers/guild-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Switch } from "@/components/ui/switch"; // Add Switch
-import { Input } from "@/components/ui/input"; // Add Input
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 export default function ChannelSettingsPage() {
   const { data: session } = useSession();
+  const { selectedGuildId } = useGuild();
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState<BotStatus | null>(null);
   const [prompts, setPrompts] = useState<ChannelPrompt[]>([]);
   const [channelProviders, setChannelProviders] = useState<ChannelProviderItem[]>([]);
   const [providersData, setProvidersData] = useState<ProvidersResponse | null>(null);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
-  const [selectedGuild, setSelectedGuild] = useState<string>("");
   
   // Form states
   const [targetChannelId, setTargetChannelId] = useState("");
@@ -32,65 +32,57 @@ export default function ChannelSettingsPage() {
   // Auto-translate states
   const [autoTranslateEnabled, setAutoTranslateEnabled] = useState(false);
   const [autoTranslateTargetLanguage, setAutoTranslateTargetLanguage] = useState("");
-  const [currentAutoTranslateSetting, setCurrentAutoTranslateSetting] = useState<{ enabled: boolean, target_language: string | null } | null>(null);
-
 
   const token = (session as { accessToken?: string })?.accessToken;
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !selectedGuildId) return;
     
+    setLoading(true);
     Promise.all([
-      api.getBotStatus(token),
-      api.getChannels(token),
-      api.getPrompts(token),
-      api.getChannelProviders(token),
+      api.getGuildChannels(token, selectedGuildId),
+      api.getPrompts(token, selectedGuildId),
+      api.getChannelProviders(token, selectedGuildId),
       api.getProviders(token)
-    ]).then(([s, c, p, cp, provs]) => {
-      setStatus(s);
+    ]).then(([c, p, cp, provs]) => {
       setChannels(c.channels);
       setPrompts(p.prompts);
       setChannelProviders(cp.channel_providers);
       setProvidersData(provs);
-      
-      if (s.guilds.length > 0) {
-        setSelectedGuild(s.guilds[0].id);
-      }
+      setTargetChannelId(""); // Reset selection on guild change
     })
     .catch(() => toast.error("Failed to load channel settings"))
     .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, selectedGuildId]);
 
-  // New useEffect to fetch auto-translate settings for the selected channel
   useEffect(() => {
-    if (!token || !targetChannelId) return;
-
-    // Reset previous auto-translate states when channel changes
-    setAutoTranslateEnabled(false);
-    setAutoTranslateTargetLanguage("");
-    setCurrentAutoTranslateSetting(null);
+    if (!token || !targetChannelId) {
+      setAutoTranslateEnabled(false);
+      setAutoTranslateTargetLanguage("");
+      return;
+    }
 
     api.getChannelAutoTranslate(token, targetChannelId)
       .then((setting) => {
         if (setting) {
-          setCurrentAutoTranslateSetting(setting);
           setAutoTranslateEnabled(setting.enabled);
           setAutoTranslateTargetLanguage(setting.target_language || "");
         } else {
-          // Reset if no setting exists for the channel
-          setCurrentAutoTranslateSetting(null);
           setAutoTranslateEnabled(false);
           setAutoTranslateTargetLanguage("");
         }
       })
-      .catch(() => toast.error("Failed to load auto-translate settings for this channel."))
+      .catch(() => {
+        setAutoTranslateEnabled(false);
+        setAutoTranslateTargetLanguage("");
+      });
   }, [token, targetChannelId]);
 
 
   const refreshPrompts = async () => {
-    if (!token) return;
+    if (!token || !selectedGuildId) return;
     try {
-      const p = await api.getPrompts(token, selectedGuild);
+      const p = await api.getPrompts(token, selectedGuildId);
       setPrompts(p.prompts);
     } catch (err) {
       toast.error("Failed to refresh personalities");
@@ -98,36 +90,17 @@ export default function ChannelSettingsPage() {
   };
 
   const refreshChannelProviders = async () => {
-    if (!token) return;
+    if (!token || !selectedGuildId) return;
     try {
-      const cp = await api.getChannelProviders(token, selectedGuild);
+      const cp = await api.getChannelProviders(token, selectedGuildId);
       setChannelProviders(cp.channel_providers);
     } catch (err) {
       toast.error("Failed to refresh channel providers");
     }
   };
 
-  const refreshAutoTranslateSetting = async () => {
-    if (!token || !targetChannelId) return;
-    try {
-      const setting = await api.getChannelAutoTranslate(token, targetChannelId);
-      if (setting) {
-        setCurrentAutoTranslateSetting(setting);
-        setAutoTranslateEnabled(setting.enabled);
-        setAutoTranslateTargetLanguage(setting.target_language || "");
-      } else {
-        setCurrentAutoTranslateSetting(null);
-        setAutoTranslateEnabled(false);
-        setAutoTranslateTargetLanguage("");
-      }
-    } catch (err) {
-      toast.error("Failed to refresh auto-translate settings.");
-    }
-  };
-
-
   async function handleSetPrompt() {
-    if (!token || !selectedGuild || !targetChannelId || !newPrompt) {
+    if (!token || !selectedGuildId || !targetChannelId || !newPrompt) {
       toast.error("Please select a channel and enter a prompt");
       return;
     }
@@ -136,7 +109,7 @@ export default function ChannelSettingsPage() {
     try {
       await api.setPrompt(token, {
         channel_id: targetChannelId,
-        guild_id: selectedGuild,
+        guild_id: selectedGuildId,
         system_prompt: newPrompt
       });
       toast.success("Channel personality updated");
@@ -150,7 +123,7 @@ export default function ChannelSettingsPage() {
   }
 
   async function handleSetChannelProvider() {
-    if (!token || !selectedGuild || !targetChannelId || !targetProvider) {
+    if (!token || !selectedGuildId || !targetChannelId || !targetProvider) {
       toast.error("Please select a channel and a provider");
       return;
     }
@@ -159,7 +132,7 @@ export default function ChannelSettingsPage() {
     try {
       await api.setChannelProvider(token, {
         channel_id: targetChannelId,
-        guild_id: selectedGuild,
+        guild_id: selectedGuildId,
         provider: targetProvider
       });
       toast.success("Channel AI provider updated");
@@ -195,36 +168,45 @@ export default function ChannelSettingsPage() {
   }
 
   async function handleSaveAutoTranslate() {
-    if (!token || !selectedGuild || !targetChannelId) {
+    if (!token || !selectedGuildId || !targetChannelId) {
       toast.error("Please select a channel.");
       return;
     }
 
-    if (autoTranslateEnabled && !autoTranslateTargetLanguage) {
-      toast.error("Please enter a target language for auto-translation.");
-      return;
-    }
-    
     setIsSubmitting(true);
     try {
       if (autoTranslateEnabled) {
+        if (!autoTranslateTargetLanguage) {
+          toast.error("Please enter a target language");
+          setIsSubmitting(false);
+          return;
+        }
         await api.setChannelAutoTranslate(token, {
           channel_id: targetChannelId,
-          guild_id: selectedGuild,
+          guild_id: selectedGuildId,
           enabled: true,
           target_language: autoTranslateTargetLanguage
         });
-        toast.success("Auto-translation enabled and saved.");
+        toast.success("Auto-translation enabled");
       } else {
         await api.deleteChannelAutoTranslate(token, targetChannelId);
-        toast.success("Auto-translation disabled.");
+        toast.success("Auto-translation disabled");
       }
-      refreshAutoTranslateSetting(); // Refresh current settings after saving
     } catch (err) {
-      toast.error("Failed to save auto-translation settings.");
+      toast.error("Failed to save auto-translation settings");
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  if (!selectedGuildId) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Globe className="h-12 w-12 text-muted-foreground/20 mb-4" />
+        <h2 className="text-xl font-semibold">No Server Selected</h2>
+        <p className="text-muted-foreground">Please select a server from the sidebar to configure its channels.</p>
+      </div>
+    );
   }
 
   if (loading) {
@@ -234,10 +216,6 @@ export default function ChannelSettingsPage() {
       </div>
     );
   }
-
-  const currentGuildChannels = channels.filter(c => c.guild_id === selectedGuild);
-  const currentGuildPrompts = prompts.filter(p => p.guild_id === selectedGuild);
-  const currentGuildProviders = channelProviders.filter(cp => cp.guild_id === selectedGuild);
 
   return (
     <div className="space-y-6">
@@ -249,26 +227,8 @@ export default function ChannelSettingsPage() {
         <Hash className="h-8 w-8 text-primary/20" />
       </div>
 
-      {status && status.guilds.length > 1 && (
-        <div className="flex overflow-x-auto pb-2 gap-2 scrollbar-hide">
-          <div className="flex gap-2">
-            {status.guilds.map(guild => (
-              <Button 
-                key={guild.id}
-                variant={selectedGuild === guild.id ? "default" : "outline"}
-                onClick={() => setSelectedGuild(guild.id)}
-                size="sm"
-                className="whitespace-nowrap"
-              >
-                {guild.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Selection Sidebar (Always visible) */}
+        {/* Selection Sidebar */}
         <Card className="md:col-span-1 h-fit">
           <CardHeader>
             <CardTitle className="text-base">Target Channel</CardTitle>
@@ -284,7 +244,7 @@ export default function ChannelSettingsPage() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="">Select a channel...</option>
-                {currentGuildChannels.map(ch => (
+                {channels.map(ch => (
                   <option key={ch.id} value={ch.id}>#{ch.name}</option>
                 ))}
               </select>
@@ -295,14 +255,14 @@ export default function ChannelSettingsPage() {
         {/* Configuration Tabs */}
         <div className="md:col-span-2 space-y-6">
           <Tabs defaultValue="personalities" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-auto"> {/* Changed grid-cols-2 to grid-cols-3 */}
+            <TabsList className="grid w-full grid-cols-3 h-auto">
               <TabsTrigger value="personalities" className="py-2">
                 <Sparkles className="mr-2 h-4 w-4" /> Personalities
               </TabsTrigger>
               <TabsTrigger value="providers" className="py-2">
                 <Cpu className="mr-2 h-4 w-4" /> AI Models
               </TabsTrigger>
-              <TabsTrigger value="autotranslate" className="py-2"> {/* New tab */}
+              <TabsTrigger value="autotranslate" className="py-2">
                 <Globe className="mr-2 h-4 w-4" /> Auto-Translation
               </TabsTrigger>
             </TabsList>
@@ -339,10 +299,10 @@ export default function ChannelSettingsPage() {
               {/* Active list */}
               <div className="space-y-2">
                 <h3 className="text-sm font-medium">Active Personalities</h3>
-                {currentGuildPrompts.length === 0 ? (
+                {prompts.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">None configured.</p>
                 ) : (
-                  currentGuildPrompts.map(p => {
+                  prompts.map(p => {
                     const ch = channels.find(c => c.id === p.channel_id);
                     return (
                       <div key={p.channel_id} className="flex items-center justify-between p-3 border rounded-lg bg-background shadow-sm">
@@ -396,10 +356,10 @@ export default function ChannelSettingsPage() {
               {/* Active list */}
               <div className="space-y-2">
                 <h3 className="text-sm font-medium">Channel-Specific Models</h3>
-                {currentGuildProviders.length === 0 ? (
+                {channelProviders.length === 0 ? (
                   <p className="text-xs text-muted-foreground italic">None configured.</p>
                 ) : (
-                  currentGuildProviders.map(cp => {
+                  channelProviders.map(cp => {
                     const ch = channels.find(c => c.id === cp.channel_id);
                     const prov = providersData?.providers.find(p => p.name === cp.provider);
                     return (
@@ -449,7 +409,7 @@ export default function ChannelSettingsPage() {
                   <Button 
                     className="w-full" 
                     onClick={handleSaveAutoTranslate}
-                    disabled={isSubmitting || !targetChannelId || (autoTranslateEnabled && !autoTranslateTargetLanguage)}
+                    disabled={isSubmitting || !targetChannelId}
                   >
                     {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Save Auto-Translation Settings
@@ -463,4 +423,3 @@ export default function ChannelSettingsPage() {
     </div>
   );
 }
-

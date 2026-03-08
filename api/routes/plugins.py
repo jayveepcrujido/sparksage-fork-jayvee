@@ -58,6 +58,23 @@ async def reload_plugin(name: str, user: dict = Depends(get_current_user)):
         
     return {"status": "ok"}
 
+@router.delete("/{name}")
+async def uninstall_plugin(name: str, user: dict = Depends(get_current_user)):
+    if not plugin_loader.loader:
+        raise HTTPException(status_code=500, detail="Plugin system not initialized")
+    
+    # Prevent uninstalling "loader" or other sensitive names if necessary
+    # For now, all in PLUGINS_DIR are fair game
+    
+    success = await plugin_loader.loader.uninstall_plugin(name)
+    if not success:
+        # If files were already gone but it's in DB, we still want to clean DB
+        pass
+        
+    await db.delete_plugin_state(name)
+    
+    return {"status": "ok", "message": f"Plugin {name} uninstalled successfully."}
+
 PLUGINS_DIR = Path("plugins")
 MAX_FILE_SIZE = 10 * 1024 * 1024 # 10 MB
 

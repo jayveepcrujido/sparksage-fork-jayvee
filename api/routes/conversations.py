@@ -8,13 +8,17 @@ router = APIRouter()
 
 
 @router.get("")
-async def list_conversations(user: dict = Depends(get_current_user)):
+async def list_conversations(guild_id: str | None = None, user: dict = Depends(get_current_user)):
     # fetch stored channel stats
-    channels = await db.list_channels()
+    channels = await db.list_channels(guild_id)
 
     # map ids → names using bot helper (used elsewhere for Channel Tuning)
     from bot import get_all_channels
-    name_map = {c["id"]: c.get("name") for c in get_all_channels()}
+    all_channels = get_all_channels()
+    if guild_id:
+        name_map = {c["id"]: c.get("name") for c in all_channels if c["guild_id"] == guild_id}
+    else:
+        name_map = {c["id"]: c.get("name") for c in all_channels}
 
     for ch in channels:
         ch["channel_name"] = name_map.get(ch.get("channel_id"))
@@ -47,14 +51,18 @@ async def export_conversation(channel_id: str, format: str = "json", user: dict 
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, f"Conversation {channel_id}", ln=True)
+        title = f"Conversation {channel_id}".encode("latin-1", "replace").decode("latin-1")
+        pdf.cell(0, 10, title, ln=True)
         pdf.ln(5)
         for m in messages:
-            line = f"[{m['role']}] {m['content']}"
+            content = f"[{m['role']}] {m['content']}"
+            # fpdf v1.7.2 only supports latin-1. Replace unencodable characters.
+            line = content.encode("latin-1", "replace").decode("latin-1")
             pdf.multi_cell(0, 8, line)
-        buf = BytesIO()
-        pdf.output(buf)
-        buf.seek(0)
+        
+        # fpdf 1.7.2 returns a latin-1 string in Python 3. We must convert it to bytes.
+        pdf_content = pdf.output(dest="S")
+        buf = BytesIO(pdf_content.encode("latin-1"))
         from fastapi.responses import StreamingResponse
         return StreamingResponse(buf, media_type="application/pdf")
 
