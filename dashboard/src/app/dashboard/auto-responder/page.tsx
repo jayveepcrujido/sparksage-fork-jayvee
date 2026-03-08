@@ -47,13 +47,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
 import { toast } from "sonner";
 
 export default function AutoResponderPage() {
@@ -196,18 +189,15 @@ export default function AutoResponderPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="match_type">Match Type</Label>
-                  <Select 
+                  <select 
+                    id="match_type"
                     value={formData.match_type} 
-                    onValueChange={(val: any) => setFormData({...formData, match_type: val})}
+                    onChange={e => setFormData({...formData, match_type: e.target.value as any})}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <SelectTrigger id="match_type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="contains">Contains</SelectItem>
-                      <SelectItem value="exact">Exact Match</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <option value="contains">Contains</option>
+                    <option value="exact">Exact Match</option>
+                  </select>
                 </div>
                 <div className="flex flex-col justify-center gap-2">
                   <Label htmlFor="is_case_sensitive">Case Sensitive</Label>
@@ -360,18 +350,15 @@ export default function AutoResponderPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-match_type">Match Type</Label>
-                <Select 
+                <select 
+                  id="edit-match_type"
                   value={formData.match_type} 
-                  onValueChange={(val: any) => setFormData({...formData, match_type: val})}
+                  onChange={e => setFormData({...formData, match_type: e.target.value as any})}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
-                  <SelectTrigger id="edit-match_type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="contains">Contains</SelectItem>
-                    <SelectItem value="exact">Exact Match</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="contains">Contains</option>
+                  <option value="exact">Exact Match</option>
+                </select>
               </div>
               <div className="flex flex-col justify-center gap-2">
                 <Label htmlFor="edit-is_case_sensitive">Case Sensitive</Label>
