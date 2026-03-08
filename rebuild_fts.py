@@ -1,22 +1,37 @@
-import sqlite3
-conn = sqlite3.connect('sparksage.db')
-c = conn.cursor()
+import asyncio
+import db
 
-# Rebuild FTS5 index
-print('Rebuilding FTS index...')
-c.execute('INSERT INTO conversations_fts(conversations_fts) VALUES("rebuild")')
-conn.commit()
-print('FTS index rebuilt')
+async def rebuild_fts():
+    print("Initializing DB...")
+    await db.init_db()
+    conn = await db.get_db()
+    
+    print("Dropping old FTS table...")
+    try:
+        await conn.execute("DROP TABLE IF EXISTS conversations_fts")
+    except Exception as e:
+        print(f"Error dropping FTS: {e}")
 
-# Test again
-c.execute('SELECT COUNT(*) FROM conversations_fts WHERE conversations_fts MATCH ?', ('you',))
-print('After rebuild - MATCH you:', c.fetchone()[0])
+    print("Recreating FTS table...")
+    # Using default tokenizer for max compatibility, but ensuring all data is synced
+    await conn.execute("""
+        CREATE VIRTUAL TABLE conversations_fts USING fts5(
+            content, 
+            channel_id, 
+            guild_id, 
+            content='conversations', 
+            content_rowid='id'
+        )
+    """)
+    
+    print("Syncing data from conversations to FTS...")
+    await conn.execute("""
+        INSERT INTO conversations_fts(rowid, content, channel_id, guild_id)
+        SELECT id, content, channel_id, guild_id FROM conversations
+    """)
+    
+    await conn.commit()
+    print("FTS rebuild complete. All existing conversations are now indexed.")
 
-c.execute('SELECT COUNT(*) FROM conversations_fts WHERE conversations_fts MATCH ?', ('are',))
-print('After rebuild - MATCH are:', c.fetchone()[0])
-
-# Try a simple word search
-c.execute('SELECT COUNT(*)  FROM conversations_fts WHERE conversations_fts MATCH ?', ('conservative',))
-print('After rebuild - MATCH conservative:', c.fetchone()[0])
-
-conn.close()
+if __name__ == "__main__":
+    asyncio.run(rebuild_fts())

@@ -410,19 +410,21 @@ async def list_channels(guild_id: str | None = None) -> list[dict]:
 # --- Search & topic helpers ---
 
 async def search_messages(query: str, guild_id: str | None = None, limit: int = 100) -> list[dict]:
-    """Search conversation content using FTS5. Returns matching message rows with channel topics."""
+    """Search conversation content using FTS5. Returns matching message rows with context snippets."""
     db = await get_db()
     
     # Clean and tokenize the query
-    # Remove special FTS5 characters that might cause syntax errors
     clean_query = "".join(c if c.isalnum() or c.isspace() else " " for c in query).strip()
     tokens = [f'"{t}"' for t in clean_query.split() if t]
     
     if not tokens:
         return []
         
-    # Join tokens with AND for flexible matching
-    prepared_query = " AND ".join(tokens)
+    match_query = " AND ".join(tokens)
+    
+    # If guild_id is provided, use FTS5 column filter for better performance
+    if guild_id:
+        match_query = f"guild_id : {guild_id} {match_query}"
 
     sql = """
         SELECT 
@@ -432,19 +434,16 @@ async def search_messages(query: str, guild_id: str | None = None, limit: int = 
             c.provider, 
             c.category, 
             c.created_at,
-            t.topic as channel_topic
-        FROM conversations c
+            t.topic as channel_topic,
+            snippet(conversations_fts, 0, '==', '==', '...', 20) as snippet
+        FROM conversations_fts f
+        JOIN conversations c ON f.rowid = c.id
         LEFT JOIN channel_topics t ON c.channel_id = t.channel_id
-        WHERE c.id IN (SELECT rowid FROM conversations_fts WHERE conversations_fts MATCH ?)
+        WHERE conversations_fts MATCH ?
+        ORDER BY rank, c.created_at DESC
+        LIMIT ?
     """
-    params = [prepared_query]
-
-    if guild_id:
-        sql += " AND c.guild_id = ?"
-        params.append(guild_id)
-        
-    sql += " ORDER BY c.created_at DESC LIMIT ?"
-    params.append(limit)
+    params = [match_query, limit]
 
     cursor = await db.execute(sql, params)
     rows = await cursor.fetchall()
@@ -1018,7 +1017,7 @@ async def set_plugin_enabled(name: str, enabled: bool):
     """Set whether a plugin is enabled."""
     db = await get_db()
     await db.execute(
-        "INSERT INTO plugins (name, enabled) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET value = excluded.enabled",
+        "INSERT INTO plugins (name, enabled) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET enabled = excluded.enabled",
         (name, int(enabled)),
     )
     await db.commit()
