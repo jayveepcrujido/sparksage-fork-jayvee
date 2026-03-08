@@ -51,10 +51,13 @@ async def export_conversation(channel_id: str, format: str = "json", user: dict 
         pdf = FPDF()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
-        pdf.cell(0, 10, f"Conversation {channel_id}", ln=True)
+        title = f"Conversation {channel_id}".encode("latin-1", "replace").decode("latin-1")
+        pdf.cell(0, 10, title, ln=True)
         pdf.ln(5)
         for m in messages:
-            line = f"[{m['role']}] {m['content']}"
+            content = f"[{m['role']}] {m['content']}"
+            # fpdf v1.7.2 only supports latin-1. Replace unencodable characters.
+            line = content.encode("latin-1", "replace").decode("latin-1")
             pdf.multi_cell(0, 8, line)
         buf = BytesIO()
         pdf.output(buf)
