@@ -197,7 +197,7 @@ export default function SettingsPage() {
           {!selectedGuildId ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Globe className="h-12 w-12 text-muted-foreground/20 mb-4" />
+                <Zap className="h-12 w-12 text-muted-foreground/20 mb-4" />
                 <h3 className="text-lg font-medium">No Server Selected</h3>
                 <p className="text-muted-foreground max-w-sm">
                   Please select a Discord server from the sidebar dropdown to manage its specific configurations.
