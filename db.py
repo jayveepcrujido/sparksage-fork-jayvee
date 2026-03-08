@@ -1003,10 +1003,18 @@ async def set_plugin_enabled(name: str, enabled: bool):
     """Set whether a plugin is enabled."""
     db = await get_db()
     await db.execute(
-        "INSERT INTO plugins (name, enabled) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET enabled = excluded.enabled",
+        "INSERT INTO plugins (name, enabled) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET value = excluded.enabled",
         (name, int(enabled)),
     )
     await db.commit()
+
+
+async def delete_plugin_state(name: str):
+    """Remove a plugin from the database."""
+    db = await get_db()
+    await db.execute("DELETE FROM plugins WHERE name = ?", (name,))
+    await db.commit()
+
 
 
 async def get_enabled_plugins() -> list[str]:

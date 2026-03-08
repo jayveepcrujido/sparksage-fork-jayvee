@@ -166,5 +166,23 @@ class PluginLoader:
         await self.unload_plugin(plugin_id)
         return await self.load_plugin(plugin_id)
 
+    async def uninstall_plugin(self, plugin_id: str) -> bool:
+        """Unload and delete a plugin's files."""
+        try:
+            # Unload first
+            await self.unload_plugin(plugin_id)
+            
+            # Delete directory
+            plugin_path = os.path.join(PLUGINS_DIR, plugin_id)
+            if os.path.exists(plugin_path) and os.path.isdir(plugin_path):
+                import shutil
+                shutil.rmtree(plugin_path)
+                print(f"[PLUGINS] Deleted files for: {plugin_id}")
+                return True
+            return False
+        except Exception as e:
+            print(f"[PLUGINS] Failed to uninstall {plugin_id}: {e}")
+            return False
+
 # Global instance initialized in bot.py
 loader = None
