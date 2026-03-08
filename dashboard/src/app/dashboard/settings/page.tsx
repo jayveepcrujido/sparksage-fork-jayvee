@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2, RotateCcw, Save, Globe, Settings2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, RotateCcw, Save, Globe, Settings2, Copy } from "lucide-react";
 import { api } from "@/lib/api";
 import { useGuild } from "@/components/providers/guild-provider";
 import { GuildSettings } from "@/components/dashboard/guild-settings";
@@ -155,6 +155,12 @@ export default function SettingsPage() {
     form.reset(DEFAULTS);
   }
 
+  const copyBotUrl = () => {
+    const url = "https://discord.com/oauth2/authorize?client_id=1473909186642317435&permissions=8515702726589504&integration_type=0&scope=bot+applications.commands";
+    navigator.clipboard.writeText(url);
+    toast.success("Bot Invite URL copied to clipboard!");
+  };
+
   const maxTokens = form.watch("MAX_TOKENS");
   const systemPrompt = form.watch("SYSTEM_PROMPT");
 
@@ -215,8 +221,17 @@ export default function SettingsPage() {
 
               <TabsContent value="general" className="space-y-6 mt-4">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
                     <CardTitle className="text-base">Bot Behavior</CardTitle>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={copyBotUrl}
+                      className="h-8"
+                    >
+                      <Copy className="mr-2 h-3.5 w-3.5" /> Generate Bot URL
+                    </Button>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-2">
