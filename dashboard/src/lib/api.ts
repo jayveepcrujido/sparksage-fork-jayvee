@@ -531,8 +531,7 @@ getGuildRoles: (token: string, guildId: string) =>
       token,
     }),
 
-  uploadPlugin: (token: string, file: File) => {
-
+  uploadPlugin: (token: string, formData: FormData) =>
     apiFetch<{ status: string }>("/api/plugins/upload", {
       method: "POST",
       body: formData,
