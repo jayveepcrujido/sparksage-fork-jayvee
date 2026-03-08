@@ -1,0 +1,8 @@
+{
+  "id": "quote-of-the-day",
+  "name": "Quote of the Day",
+  "version": "1.0.0",
+  "description": "Slash command that returns a random inspirational quote.",
+  "author": "Test Plugin",
+  "cog": "QuoteOfTheDay"
+}

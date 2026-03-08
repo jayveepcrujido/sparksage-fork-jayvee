@@ -134,6 +134,16 @@ async def init_db():
             enabled INTEGER NOT NULL DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS auto_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            keyword TEXT NOT NULL,
+            response TEXT NOT NULL,
+            match_type TEXT NOT NULL DEFAULT 'contains', -- 'exact' or 'contains'
+            is_case_sensitive INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
         INSERT OR IGNORE INTO wizard_state (id) VALUES (1);
         """
     )
@@ -992,3 +1002,51 @@ async def get_plugin_states() -> dict[str, bool]:
     cursor = await db.execute("SELECT name, enabled FROM plugins")
     rows = await cursor.fetchall()
     return {r["name"]: bool(r["enabled"]) for r in rows}
+
+
+# --- Auto-responder helpers ---
+
+
+async def add_auto_response(guild_id: str, keyword: str, response: str, match_type: str = "contains", is_case_sensitive: bool = False):
+    """Add a new auto-response."""
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO auto_responses (guild_id, keyword, response, match_type, is_case_sensitive) VALUES (?, ?, ?, ?, ?)",
+        (guild_id, keyword, response, match_type, int(is_case_sensitive)),
+    )
+    await db.commit()
+
+
+async def list_auto_responses(guild_id: str | None = None) -> list[dict]:
+    """List auto-responses, optionally filtered by guild."""
+    db = await get_db()
+    if guild_id:
+        cursor = await db.execute("SELECT * FROM auto_responses WHERE guild_id = ? ORDER BY id DESC", (guild_id,))
+    else:
+        cursor = await db.execute("SELECT * FROM auto_responses ORDER BY id DESC")
+    rows = await cursor.fetchall()
+    return [dict(row) for row in rows]
+
+
+async def update_auto_response(response_id: int, keyword: str, response: str, match_type: str, is_case_sensitive: bool, guild_id: str | None = None):
+    """Update an auto-response."""
+    db = await get_db()
+    query = "UPDATE auto_responses SET keyword = ?, response = ?, match_type = ?, is_case_sensitive = ? WHERE id = ?"
+    params = [keyword, response, match_type, int(is_case_sensitive), response_id]
+    
+    if guild_id:
+        query += " AND guild_id = ?"
+        params.append(guild_id)
+        
+    await db.execute(query, params)
+    await db.commit()
+
+
+async def delete_auto_response(response_id: int, guild_id: str | None = None):
+    """Delete an auto-response."""
+    db = await get_db()
+    if guild_id:
+        await db.execute("DELETE FROM auto_responses WHERE id = ? AND guild_id = ?", (response_id, guild_id))
+    else:
+        await db.execute("DELETE FROM auto_responses WHERE id = ?", (response_id,))
+    await db.commit()

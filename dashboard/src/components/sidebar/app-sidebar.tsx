@@ -44,6 +44,7 @@ const NAV_ITEMS = [
   { title: "Onboarding", href: "/dashboard/onboarding", icon: UserPlus },
   { title: "Conversations", href: "/dashboard/conversations", icon: MessageSquare },
   { title: "FAQs", href: "/dashboard/faqs", icon: HelpCircle },
+  { title: "Auto-Responder", href: "/dashboard/auto-responder", icon: MessageSquare },
   { title: "Permissions", href: "/dashboard/permissions", icon: Shield },
 ];
 
@@ -90,7 +91,7 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS.filter(item => 
-                ["Channel Tuning", "Onboarding", "Conversations", "FAQs", "Permissions"].includes(item.title)
+                ["Channel Tuning", "Onboarding", "Conversations", "FAQs", "Permissions", "Auto-Responder"].includes(item.title)
               ).map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={pathname === item.href}>

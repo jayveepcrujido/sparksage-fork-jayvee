@@ -1,0 +1,8 @@
+{
+  "id": "ph-history",
+  "name": "Philippine Historical Facts",
+  "version": "1.0.0",
+  "description": "Slash command that shares random historical facts about the Philippines.",
+  "author": "Test Plugin",
+  "cog": "PhilippineHistory"
+}

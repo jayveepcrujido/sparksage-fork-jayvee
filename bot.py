@@ -162,6 +162,7 @@ async def on_ready():
         await bot.load_extension("cogs.moderation")
         await bot.load_extension("cogs.translate")
         await bot.load_extension("cogs.plugins")
+        await bot.load_extension("cogs.auto_responder")
 
         # Initialize Plugins
         plugin_loader.loader = plugin_loader.PluginLoader(bot)

@@ -200,6 +200,16 @@ export interface CommandsResponse {
   commands: string[];
 }
 
+export interface AutoResponse {
+  id: number;
+  guild_id: string;
+  keyword: string;
+  response: string;
+  match_type: "exact" | "contains";
+  is_case_sensitive: boolean;
+  created_at: string;
+}
+
 export const api = {
   // Auth
   login: (password: string) =>
@@ -534,4 +544,52 @@ getGuildRoles: (token: string, guildId: string) =>
       body: JSON.stringify({ values }),
       token,
     }),
+
+  // Auto-Responses
+  getAutoResponses: (token: string, guildId?: string) =>
+    apiFetch<{ auto_responses: AutoResponse[] }>(
+      `/api/auto-responses${guildId ? `?guild_id=${guildId}` : ""}`,
+      { token },
+    ),
+
+  createAutoResponse: (
+    token: string,
+    data: {
+      guild_id: string;
+      keyword: string;
+      response: string;
+      match_type: string;
+      is_case_sensitive: boolean;
+    },
+  ) =>
+    apiFetch<{ status: string }>("/api/auto-responses", {
+      method: "POST",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  updateAutoResponse: (
+    token: string,
+    id: number,
+    data: {
+      keyword: string;
+      response: string;
+      match_type: string;
+      is_case_sensitive: boolean;
+    },
+  ) =>
+    apiFetch<{ status: string }>(`/api/auto-responses/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+      token,
+    }),
+
+  deleteAutoResponse: (token: string, id: number, guildId?: string) =>
+    apiFetch<{ status: string }>(
+      `/api/auto-responses/${id}${guildId ? `?guild_id=${guildId}` : ""}`,
+      {
+        method: "DELETE",
+        token,
+      },
+    ),
 };
