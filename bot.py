@@ -19,6 +19,22 @@ bot = commands.Bot(command_prefix=config.BOT_PREFIX, intents=intents)
 MAX_HISTORY = 20
 
 
+async def update_presence():
+    """Update the bot's Discord presence based on current config."""
+    activity_type_str = config.PRESENCE_ACTIVITY_TYPE.lower()
+    activity_name = config.PRESENCE_ACTIVITY_NAME
+
+    if activity_type_str == "watching":
+        activity = discord.Activity(type=discord.ActivityType.watching, name=activity_name)
+    elif activity_type_str == "listening":
+        activity = discord.Activity(type=discord.ActivityType.listening, name=activity_name)
+    else: # Default to playing
+        activity = discord.Game(name=activity_name)
+    
+    await bot.change_presence(activity=activity)
+    print(f"[DEBUG] Bot presence updated: {activity_type_str} {activity_name}")
+
+
 async def get_bot_status() -> dict:
     """Return bot status info for the dashboard API."""
     is_ready = bot.is_ready()
@@ -145,6 +161,9 @@ async def on_ready():
         # Initialize database when bot is ready
         await database.init_db()
         await database.sync_env_to_db()
+        
+        # Update presence from initial config
+        await update_presence()
 
         # Verify intents
         if not bot.intents.message_content:

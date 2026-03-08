@@ -32,6 +32,8 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 BOT_PREFIX = os.getenv("BOT_PREFIX", "!")
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4096"))
 AI_PERSONA = os.getenv("AI_PERSONA", "default")
+PRESENCE_ACTIVITY_TYPE = os.getenv("PRESENCE_ACTIVITY_TYPE", "playing")  # playing, watching, listening
+PRESENCE_ACTIVITY_NAME = os.getenv("PRESENCE_ACTIVITY_NAME", "with AI")
 SYSTEM_PROMPT = os.getenv(
     "SYSTEM_PROMPT",
     "You are SparkSage, a helpful and friendly AI assistant in a Discord server. "
@@ -172,6 +174,8 @@ def reload_from_db(db_config: dict[str, str]):
         "BOT_PREFIX": str,
         "MAX_TOKENS": int,
         "AI_PERSONA": str,
+        "PRESENCE_ACTIVITY_TYPE": str,
+        "PRESENCE_ACTIVITY_NAME": str,
         "SYSTEM_PROMPT": str,
         "ADMIN_PASSWORD": str,
         "DISCORD_CLIENT_ID": str,

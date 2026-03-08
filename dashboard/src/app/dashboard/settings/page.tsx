@@ -26,6 +26,8 @@ const settingsSchema = z.object({
   BOT_PREFIX: z.string().min(1).max(5),
   MAX_TOKENS: z.number().min(128).max(4096),
   SYSTEM_PROMPT: z.string().min(1),
+  PRESENCE_ACTIVITY_TYPE: z.string(),
+  PRESENCE_ACTIVITY_NAME: z.string(),
   GEMINI_API_KEY: z.string(),
   GEMINI_MODEL: z.string(),
   GROQ_API_KEY: z.string(),
@@ -54,6 +56,8 @@ const DEFAULTS: SettingsForm = {
   MAX_TOKENS: 1024,
   SYSTEM_PROMPT:
     "You are SparkSage, a helpful and friendly AI assistant in a Discord server. Be concise, helpful, and engaging.",
+  PRESENCE_ACTIVITY_TYPE: "playing",
+  PRESENCE_ACTIVITY_NAME: "with AI",
   GEMINI_API_KEY: "",
   GEMINI_MODEL: "gemini-2.5-flash",
   GROQ_API_KEY: "",
@@ -314,6 +318,38 @@ export default function SettingsPage() {
                         {...form.register("SYSTEM_PROMPT")}
                         rows={4}
                       />
+                    </div>
+
+                    <Separator />
+
+                    <div className="space-y-4">
+                      <Label>Bot Presence (Branding)</Label>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="presence-type">Activity Type</Label>
+                          <select
+                            id="presence-type"
+                            value={form.watch("PRESENCE_ACTIVITY_TYPE")}
+                            onChange={(e) => form.setValue("PRESENCE_ACTIVITY_TYPE", e.target.value)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          >
+                            <option value="playing">Playing</option>
+                            <option value="watching">Watching</option>
+                            <option value="listening">Listening to</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="presence-name">Status Text</Label>
+                          <Input
+                            id="presence-name"
+                            {...form.register("PRESENCE_ACTIVITY_NAME")}
+                            placeholder="e.g. with AI or 500 users"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        This update may take a few seconds to reflect in Discord.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

@@ -56,3 +56,10 @@ async def _reload_config():
 
     import providers
     providers.reload_clients()
+
+    # Trigger bot presence update
+    try:
+        from bot import update_presence
+        await update_presence()
+    except Exception as e:
+        print(f"[API] Failed to update bot presence: {e}")
