@@ -349,18 +349,36 @@ export default function AnalyticsPage() {
         </TabsContent>
 
         <TabsContent value="rate-limits" className="space-y-6 mt-6">
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Top User Usage (24h)</CardTitle>
-                <CardDescription>Individual users with highest interaction volume</CardDescription>
+                <CardTitle className="text-base">Top User Activity (24h)</CardTitle>
+                <CardDescription>Most active users across all servers</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
+                {rateLimitStats.user_usage.length > 0 && (
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={rateLimitStats.user_usage.slice(0, 5)} layout="vertical" margin={{ left: 60 }}>
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="user_name" 
+                          type="category" 
+                          fontSize={11} 
+                          width={100}
+                          tickFormatter={(val) => val || "Unknown"}
+                        />
+                        <Tooltip cursor={{fill: 'transparent'}} />
+                        <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
                 <div className="relative overflow-x-auto rounded-md border">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-muted text-muted-foreground text-xs uppercase">
                       <tr>
-                        <th className="px-4 py-3 font-medium">User ID</th>
+                        <th className="px-4 py-3 font-medium">User</th>
                         <th className="px-4 py-3 font-medium">Requests</th>
                       </tr>
                     </thead>
@@ -372,7 +390,10 @@ export default function AnalyticsPage() {
                       ) : (
                         rateLimitStats.user_usage.map((u, i) => (
                           <tr key={i} className="hover:bg-muted/50">
-                            <td className="px-4 py-3 font-mono text-xs">{u.user_id}</td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium">{u.user_name || "Unknown User"}</div>
+                              <div className="text-[10px] text-muted-foreground font-mono">{u.user_id}</div>
+                            </td>
                             <td className="px-4 py-3 font-medium">{u.count}</td>
                           </tr>
                         ))
@@ -385,15 +406,33 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Top Server Usage (24h)</CardTitle>
-                <CardDescription>Discord servers with highest interaction volume</CardDescription>
+                <CardTitle className="text-base">Top Server Activity (24h)</CardTitle>
+                <CardDescription>Servers with highest interaction volume</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
+                {rateLimitStats.guild_usage.length > 0 && (
+                  <div className="h-[200px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={rateLimitStats.guild_usage.slice(0, 5)} layout="vertical" margin={{ left: 60 }}>
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="guild_name" 
+                          type="category" 
+                          fontSize={11} 
+                          width={100}
+                          tickFormatter={(val) => val || "Unknown"}
+                        />
+                        <Tooltip cursor={{fill: 'transparent'}} />
+                        <Bar dataKey="count" fill="#10b981" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
                 <div className="relative overflow-x-auto rounded-md border">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-muted text-muted-foreground text-xs uppercase">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Guild ID</th>
+                        <th className="px-4 py-3 font-medium">Server</th>
                         <th className="px-4 py-3 font-medium">Requests</th>
                       </tr>
                     </thead>
@@ -405,7 +444,10 @@ export default function AnalyticsPage() {
                       ) : (
                         rateLimitStats.guild_usage.map((g, i) => (
                           <tr key={i} className="hover:bg-muted/50">
-                            <td className="px-4 py-3 font-mono text-xs">{g.guild_id}</td>
+                            <td className="px-4 py-3">
+                              <div className="font-medium">{g.guild_name || "Unknown Server"}</div>
+                              <div className="text-[10px] text-muted-foreground font-mono">{g.guild_id}</div>
+                            </td>
                             <td className="px-4 py-3 font-medium">{g.count}</td>
                           </tr>
                         ))

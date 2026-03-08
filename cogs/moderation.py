@@ -49,8 +49,10 @@ class ModerationCog(commands.Cog):
             await database.log_analytics(
                 event_type="moderation_check",
                 guild_id=str(message.guild.id) if message.guild else None,
+                guild_name=message.guild.name if message.guild else None,
                 channel_id=str(message.channel.id),
                 user_id=str(message.author.id),
+                user_name=message.author.display_name,
                 provider=provider,
                 tokens_used=total_tokens,
                 latency_ms=latency
@@ -98,8 +100,10 @@ class ModerationCog(commands.Cog):
         await database.log_analytics(
             event_type="moderation_flag",
             guild_id=guild_id,
+            guild_name=message.guild.name if message.guild else None,
             channel_id=channel_id,
-            user_id=user_id
+            user_id=user_id,
+            user_name=message.author.display_name
         )
 
         # Post to mod-log channel

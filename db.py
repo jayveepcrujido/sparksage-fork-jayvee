@@ -121,11 +121,16 @@ async def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             event_type  TEXT NOT NULL,
             guild_id    TEXT,
+            guild_name  TEXT,
             channel_id  TEXT,
             user_id     TEXT,
+            user_name   TEXT,
             provider    TEXT,
             tokens_used INTEGER,
             latency_ms  INTEGER,
+            input_tokens INTEGER,
+            output_tokens INTEGER,
+            estimated_cost REAL,
             created_at  TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
@@ -852,8 +857,10 @@ async def delete_channel_autotranslate_setting(channel_id: str):
 async def log_analytics(
     event_type: str,
     guild_id: str | None = None,
+    guild_name: str | None = None,
     channel_id: str | None = None,
     user_id: str | None = None,
+    user_name: str | None = None,
     provider: str | None = None,
     tokens_used: int | None = None,
     latency_ms: int | None = None,
@@ -865,10 +872,10 @@ async def log_analytics(
     db = await get_db()
     await db.execute(
         """
-        INSERT INTO analytics (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO analytics (event_type, guild_id, guild_name, channel_id, user_id, user_name, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        (event_type, guild_id, channel_id, user_id, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost),
+        (event_type, guild_id, guild_name, channel_id, user_id, user_name, provider, tokens_used, latency_ms, input_tokens, output_tokens, estimated_cost),
     )
     await db.commit()
 
@@ -1059,7 +1066,7 @@ async def get_rate_limit_stats(limit: int = 10) -> dict:
     # Per-user usage (last 24h)
     cursor = await db.execute(
         """
-        SELECT user_id, COUNT(*) as count
+        SELECT user_id, user_name, COUNT(*) as count
         FROM analytics
         WHERE user_id IS NOT NULL AND event_type NOT IN ('rate_limited', 'moderation_check')
         AND created_at > datetime('now', '-1 day')
@@ -1069,12 +1076,12 @@ async def get_rate_limit_stats(limit: int = 10) -> dict:
         """,
         (limit,)
     )
-    user_usage = [{"user_id": r["user_id"], "count": r["count"]} for r in await cursor.fetchall()]
+    user_usage = [{"user_id": r["user_id"], "user_name": r["user_name"], "count": r["count"]} for r in await cursor.fetchall()]
     
     # Per-guild usage (last 24h)
     cursor = await db.execute(
         """
-        SELECT guild_id, COUNT(*) as count
+        SELECT guild_id, guild_name, COUNT(*) as count
         FROM analytics
         WHERE guild_id IS NOT NULL AND event_type NOT IN ('rate_limited', 'moderation_check')
         AND created_at > datetime('now', '-1 day')
@@ -1084,7 +1091,7 @@ async def get_rate_limit_stats(limit: int = 10) -> dict:
         """,
         (limit,)
     )
-    guild_usage = [{"guild_id": r["guild_id"], "count": r["count"]} for r in await cursor.fetchall()]
+    guild_usage = [{"guild_id": r["guild_id"], "guild_name": r["guild_name"], "count": r["count"]} for r in await cursor.fetchall()]
     
     return {
         "user_usage": user_usage,

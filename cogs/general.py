@@ -20,12 +20,12 @@ class General(commands.Cog):
     async def ask(self, interaction: discord.Interaction, question: str):
         await interaction.response.defer()
         response, provider_name = await ask_ai(
-            interaction.channel_id, 
-            interaction.user.display_name, 
+            interaction.channel_id,
+            interaction.user.display_name,
             question,
             guild_id=interaction.guild_id,
+            guild_name=interaction.guild.name if interaction.guild else None,
             user_id=interaction.user.id,
-            event_type="command"
         )
         provider_label = config.PROVIDERS.get(provider_name, {}).get("name", provider_name)
         footer = f"\n-# Powered by {provider_label}"

@@ -21,18 +21,11 @@ async def ask_ai(
     system_prompt: str | None = None,
     category: str | None = None,
     guild_id: int | None = None,
+    guild_name: str | None = None,
     user_id: int | None = None,
     event_type: str = "mention"
 ) -> tuple[str, str]:
-    """Send a message to AI and return (response, provider_name).
-
-    The implementation includes automatic routing: very short or trivial
-    user messages are tagged as "simple" and the request is forwarded to a
-    free provider (Gemini/Groq/OpenRouter) whenever one is available.  This
-    behavior lowers costs and improves latency for everyday queries.  A
-    channel-specific provider override (from the database) will take
-    precedence over the automatic choice.
-    """
+    """Send a message to AI and return (response, provider_name)."""
     # Skip rate limiting for internal system calls (like digest)
     if channel_id != 0 and user_id:
         is_limited, reason = limiter.is_rate_limited(str(user_id), str(guild_id) if guild_id else None)
@@ -41,8 +34,10 @@ async def ask_ai(
             await database.log_analytics(
                 event_type="rate_limited",
                 guild_id=str(guild_id) if guild_id else None,
+                guild_name=guild_name,
                 channel_id=str(channel_id),
-                user_id=str(user_id)
+                user_id=str(user_id),
+                user_name=user_name
             )
             return reason, "rate_limit"
 
@@ -76,9 +71,7 @@ async def ask_ai(
     # Check for channel-specific provider
     preferred_provider = await database.get_channel_provider(str(channel_id))
     
-    # Automatic routing: if the user message is very simple we prefer a free
-    # provider regardless of the configured primary, unless a channel override
-    # is explicitly set.  This keeps costs down for trivial queries.
+    # Automatic routing
     auto_provider = None
     if not preferred_provider:
         auto_provider = providers.choose_provider_for_query(message)
@@ -114,8 +107,10 @@ async def ask_ai(
         await database.log_analytics(
             event_type=category or event_type,
             guild_id=str(guild_id) if guild_id else None,
+            guild_name=guild_name,
             channel_id=str(channel_id),
             user_id=str(user_id) if user_id else None,
+            user_name=user_name,
             provider=provider_name,
             tokens_used=total_tokens,
             latency_ms=latency,

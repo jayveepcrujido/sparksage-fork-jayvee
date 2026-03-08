@@ -80,7 +80,8 @@ class DigestCog(commands.Cog):
                     system_prompt=summary_prompt,
                     category="digest",
                     event_type="digest",
-                    guild_id=guild.id
+                    guild_id=guild.id,
+                    guild_name=guild.name
                 )
 
                 # Post to digest channel
