@@ -1050,3 +1050,43 @@ async def delete_auto_response(response_id: int, guild_id: str | None = None):
     else:
         await db.execute("DELETE FROM auto_responses WHERE id = ?", (response_id,))
     await db.commit()
+
+
+async def get_rate_limit_stats(limit: int = 10) -> dict:
+    """Get rate limiting statistics from analytics."""
+    db = await get_db()
+    
+    # Per-user usage (last 24h)
+    cursor = await db.execute(
+        """
+        SELECT user_id, COUNT(*) as count
+        FROM analytics
+        WHERE user_id IS NOT NULL AND event_type NOT IN ('rate_limited', 'moderation_check')
+        AND created_at > datetime('now', '-1 day')
+        GROUP BY user_id
+        ORDER BY count DESC
+        LIMIT ?
+        """,
+        (limit,)
+    )
+    user_usage = [{"user_id": r["user_id"], "count": r["count"]} for r in await cursor.fetchall()]
+    
+    # Per-guild usage (last 24h)
+    cursor = await db.execute(
+        """
+        SELECT guild_id, COUNT(*) as count
+        FROM analytics
+        WHERE guild_id IS NOT NULL AND event_type NOT IN ('rate_limited', 'moderation_check')
+        AND created_at > datetime('now', '-1 day')
+        GROUP BY guild_id
+        ORDER BY count DESC
+        LIMIT ?
+        """,
+        (limit,)
+    )
+    guild_usage = [{"guild_id": r["guild_id"], "count": r["count"]} for r in await cursor.fetchall()]
+    
+    return {
+        "user_usage": user_usage,
+        "guild_usage": guild_usage
+    }

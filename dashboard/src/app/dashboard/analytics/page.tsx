@@ -33,6 +33,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [history, setHistory] = useState<AnalyticsEvent[]>([]);
+  const [rateLimitStats, setRateLimitStats] = useState<{ user_usage: any[], guild_usage: any[] }>({ user_usage: [], guild_usage: [] });
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [days, setDays] = useState(7);
 
@@ -45,11 +46,13 @@ export default function AnalyticsPage() {
     Promise.all([
       api.getAnalyticsSummary(token, days, selectedGuildId),
       api.getAnalyticsHistory(token, 50), // History might still be global or filterable later
+      api.getRateLimitAnalytics(token, 10),
       api.getGuildChannels(token, selectedGuildId).catch(() => ({ channels: [] }))
     ])
-      .then(([s, h, c]) => {
+      .then(([s, h, r, c]) => {
         setSummary(s);
         setHistory(h.history.filter(e => !selectedGuildId || e.guild_id === selectedGuildId));
+        setRateLimitStats(r);
         setChannels(c.channels);
       })
       .catch((err) => {
@@ -111,9 +114,10 @@ export default function AnalyticsPage() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+        <TabsList className="grid w-full grid-cols-4 max-w-[800px]">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="costs">Costs</TabsTrigger>
+          <TabsTrigger value="rate-limits">Rate Limits</TabsTrigger>
           <TabsTrigger value="history">Event History</TabsTrigger>
         </TabsList>
 
@@ -338,6 +342,76 @@ export default function AnalyticsPage() {
                   <p className="text-xs text-amber-700 leading-relaxed">
                     Switching high-volume channels to <strong>Groq</strong> or <strong>Gemini Flash</strong> can significantly reduce your monthly spend while maintaining performance.
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rate-limits" className="space-y-6 mt-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Top User Usage (24h)</CardTitle>
+                <CardDescription>Individual users with highest interaction volume</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative overflow-x-auto rounded-md border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-muted text-muted-foreground text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">User ID</th>
+                        <th className="px-4 py-3 font-medium">Requests</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rateLimitStats.user_usage.length === 0 ? (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground italic">No usage data.</td>
+                        </tr>
+                      ) : (
+                        rateLimitStats.user_usage.map((u, i) => (
+                          <tr key={i} className="hover:bg-muted/50">
+                            <td className="px-4 py-3 font-mono text-xs">{u.user_id}</td>
+                            <td className="px-4 py-3 font-medium">{u.count}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Top Server Usage (24h)</CardTitle>
+                <CardDescription>Discord servers with highest interaction volume</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="relative overflow-x-auto rounded-md border">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-muted text-muted-foreground text-xs uppercase">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Guild ID</th>
+                        <th className="px-4 py-3 font-medium">Requests</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rateLimitStats.guild_usage.length === 0 ? (
+                        <tr>
+                          <td colSpan={2} className="px-4 py-8 text-center text-muted-foreground italic">No usage data.</td>
+                        </tr>
+                      ) : (
+                        rateLimitStats.guild_usage.map((g, i) => (
+                          <tr key={i} className="hover:bg-muted/50">
+                            <td className="px-4 py-3 font-mono text-xs">{g.guild_id}</td>
+                            <td className="px-4 py-3 font-medium">{g.count}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </CardContent>
             </Card>

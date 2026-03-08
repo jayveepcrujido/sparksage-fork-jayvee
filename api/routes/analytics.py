@@ -20,3 +20,8 @@ async def get_analytics_history(limit: int = 100, user: dict = Depends(get_curre
     )
     rows = await cursor.fetchall()
     return {"history": [dict(r) for r in rows]}
+
+@router.get("/rate-limits")
+async def get_rate_limit_analytics(limit: int = 10, user: dict = Depends(get_current_user)):
+    stats = await db.get_rate_limit_stats(limit)
+    return stats

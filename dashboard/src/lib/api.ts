@@ -502,6 +502,12 @@ getGuildRoles: (token: string, guildId: string) =>
       { token },
     ),
 
+  getRateLimitAnalytics: (token: string, limit: number = 10) =>
+    apiFetch<{ user_usage: any[]; guild_usage: any[] }>(
+      `/api/analytics/rate-limits?limit=${limit}`,
+      { token },
+    ),
+
   // Plugins
   getPlugins: (token: string) =>
     apiFetch<{ plugins: PluginItem[] }>("/api/plugins", { token }),
