@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Search, X, Globe } from "lucide-react";
+import { Loader2, Search, X, Zap } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChannelItem, MessageItem } from "@/lib/api";
 import { useGuild } from "@/components/providers/guild-provider";
@@ -112,7 +112,7 @@ export default function ConversationsPage() {
   if (!selectedGuildId) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Globe className="h-12 w-12 text-muted-foreground/20 mb-4" />
+        <Zap className="h-12 w-12 text-muted-foreground/20 mb-4" />
         <h2 className="text-xl font-semibold">No Server Selected</h2>
         <p className="text-muted-foreground">Please select a server from the sidebar to view its conversations.</p>
       </div>

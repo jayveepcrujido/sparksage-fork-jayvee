@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Eye, EyeOff, Loader2, RotateCcw, Save, Globe, Settings2, Copy } from "lucide-react";
+import { Eye, EyeOff, Loader2, RotateCcw, Save, Zap, Settings2, Copy } from "lucide-react";
 import { api } from "@/lib/api";
 import { useGuild } from "@/components/providers/guild-provider";
 import { GuildSettings } from "@/components/dashboard/guild-settings";
@@ -189,7 +189,7 @@ export default function SettingsPage() {
             <Settings2 className="mr-2 h-4 w-4" /> Server Settings
           </TabsTrigger>
           <TabsTrigger value="global" className="py-2">
-            <Globe className="mr-2 h-4 w-4" /> Global Bot Settings
+            <Zap className="mr-2 h-4 w-4" /> Global Bot Settings
           </TabsTrigger>
         </TabsList>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Globe } from "lucide-react";
+import { Check, ChevronsUpDown, Zap } from "lucide-react";
 import { useGuild } from "@/components/providers/guild-provider";
 import {
   DropdownMenu,
@@ -19,7 +19,7 @@ export function GuildSelector() {
       <SidebarMenu>
         <SidebarMenuItem>
           <SidebarMenuButton disabled>
-            <Globe className="mr-2 h-4 w-4" />
+            <Zap className="mr-2 h-4 w-4" />
             <span>No Servers Found</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -37,7 +37,7 @@ export function GuildSelector() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <div className="flex aspect-square h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Globe className="h-4 w-4" />
+                <Zap className="h-4 w-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">
@@ -63,7 +63,7 @@ export function GuildSelector() {
                 className="gap-2 p-2"
               >
                 <div className="flex h-6 w-6 items-center justify-center rounded bg-muted">
-                  <Globe className="h-3 w-3" />
+                  <Zap className="h-3 w-3" />
                 </div>
                 {guild.name}
                 {selectedGuildId === guild.id && (
