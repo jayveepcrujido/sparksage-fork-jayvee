@@ -30,6 +30,15 @@ async def list_conversations(guild_id: str | None = None, user: dict = Depends(g
 async def search_conversations(q: str, guild_id: str | None = None, limit: int = 100, user: dict = Depends(get_current_user)):
     """Search stored messages using a full-text index."""
     results = await db.search_messages(q, guild_id, limit)
+
+    # resolve channel names using bot helper
+    from bot import get_all_channels
+    all_channels = get_all_channels()
+    name_map = {c["id"]: c.get("name") for c in all_channels}
+
+    for r in results:
+        r["channel_name"] = name_map.get(r.get("channel_id"))
+
     return {"query": q, "results": results}
 
 

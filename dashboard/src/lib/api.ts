@@ -77,6 +77,9 @@ export interface ChannelItem {
 }
 
 export interface MessageItem {
+  channel_id: string;
+  channel_name?: string | null;
+  channel_topic?: string | null;
   role: string;
   content: string;
   provider: string | null;

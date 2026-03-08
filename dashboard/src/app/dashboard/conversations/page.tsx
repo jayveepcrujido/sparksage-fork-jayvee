@@ -2,17 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, Search, X, Zap } from "lucide-react";
+import { Loader2, Search, X, Zap, Hash, MessageSquare, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChannelItem, MessageItem } from "@/lib/api";
 import { useGuild } from "@/components/providers/guild-provider";
 import { ChannelList } from "@/components/conversations/channel-list";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { MessageList } from "@/components/conversations/message-list";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function ConversationsPage() {
   const { data: session } = useSession();
@@ -127,6 +128,20 @@ export default function ConversationsPage() {
     );
   }
 
+  // Group search results by channel
+  const groupedResults = searchResults.reduce((acc, msg) => {
+    if (!acc[msg.channel_id]) {
+      acc[msg.channel_id] = {
+        channel_id: msg.channel_id,
+        channel_name: msg.channel_name,
+        channel_topic: msg.channel_topic,
+        messages: []
+      };
+    }
+    acc[msg.channel_id].messages.push(msg);
+    return acc;
+  }, {} as Record<string, { channel_id: string, channel_name: string | null | undefined, channel_topic: string | null | undefined, messages: MessageItem[] }>);
+
   // show search results if search has been performed
   if (hasSearched) {
     return (
@@ -180,27 +195,54 @@ export default function ConversationsPage() {
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Messages
-              {!searching && searchResults.length > 0 && (
-                <span className="ml-2 text-sm font-normal text-muted-foreground">
-                  ({searchResults.length})
-                </span>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {searching ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <MessageList messages={searchResults} />
-            )}
-          </CardContent>
-        </Card>
+        {searching ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+          </div>
+        ) : Object.keys(groupedResults).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground/10 mb-4" />
+            <h3 className="text-lg font-medium">No matches found</h3>
+            <p className="text-muted-foreground">Try different keywords or check another server.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {Object.values(groupedResults).map((group) => (
+              <Card key={group.channel_id} className="overflow-hidden border-primary/10">
+                <CardHeader className="bg-muted/30 pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Hash className="h-4 w-4 text-primary" />
+                        <CardTitle className="text-base">
+                          {group.channel_name || `Channel ${group.channel_id}`}
+                        </CardTitle>
+                      </div>
+                      {group.channel_topic && (
+                        <CardDescription className="flex items-center gap-1.5 italic">
+                          Topic: {group.channel_topic}
+                        </CardDescription>
+                      )}
+                    </div>
+                    <Button variant="outline" size="sm" asChild className="h-8 gap-1.5">
+                      <Link href={`/dashboard/conversations/${group.channel_id}`}>
+                        View Thread <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="space-y-4">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {group.messages.length} matching message{group.messages.length > 1 ? 's' : ''}
+                    </p>
+                    <MessageList messages={group.messages} />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     );
   }

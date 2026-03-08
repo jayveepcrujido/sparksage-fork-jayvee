@@ -410,28 +410,43 @@ async def list_channels(guild_id: str | None = None) -> list[dict]:
 # --- Search & topic helpers ---
 
 async def search_messages(query: str, guild_id: str | None = None, limit: int = 100) -> list[dict]:
-    """Search conversation content using FTS5. Returns matching message rows."""
+    """Search conversation content using FTS5. Returns matching message rows with channel topics."""
     db = await get_db()
-    # Prepare query for FTS5: escape double quotes and enclose in double quotes for literal matching
-    # This prevents FTS5 from interpreting special characters like '?' as syntax errors.
-    prepared_query = '"' + query.replace('"', '""') + '"'
+    
+    # Clean and tokenize the query
+    # Remove special FTS5 characters that might cause syntax errors
+    clean_query = "".join(c if c.isalnum() or c.isspace() else " " for c in query).strip()
+    tokens = [f'"{t}"' for t in clean_query.split() if t]
+    
+    if not tokens:
+        return []
+        
+    # Join tokens with AND for flexible matching
+    prepared_query = " AND ".join(tokens)
+
+    sql = """
+        SELECT 
+            c.channel_id, 
+            c.role, 
+            c.content, 
+            c.provider, 
+            c.category, 
+            c.created_at,
+            t.topic as channel_topic
+        FROM conversations c
+        LEFT JOIN channel_topics t ON c.channel_id = t.channel_id
+        WHERE c.id IN (SELECT rowid FROM conversations_fts WHERE conversations_fts MATCH ?)
+    """
+    params = [prepared_query]
 
     if guild_id:
-        cursor = await db.execute(
-            "SELECT channel_id, role, content, provider, category, created_at "
-            "FROM conversations "
-            "WHERE guild_id = ? AND id IN (SELECT rowid FROM conversations_fts WHERE conversations_fts MATCH ?) "
-            "ORDER BY created_at DESC LIMIT ?",
-            (guild_id, prepared_query, limit),
-        )
-    else:
-        cursor = await db.execute(
-            "SELECT channel_id, role, content, provider, category, created_at "
-            "FROM conversations "
-            "WHERE id IN (SELECT rowid FROM conversations_fts WHERE conversations_fts MATCH ?) "
-            "ORDER BY created_at DESC LIMIT ?",
-            (prepared_query, limit),
-        )
+        sql += " AND c.guild_id = ?"
+        params.append(guild_id)
+        
+    sql += " ORDER BY c.created_at DESC LIMIT ?"
+    params.append(limit)
+
+    cursor = await db.execute(sql, params)
     rows = await cursor.fetchall()
     return [dict(row) for row in rows]
 
