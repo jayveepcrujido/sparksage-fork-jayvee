@@ -17,12 +17,12 @@ class ModerationCog(commands.Cog):
         guild_id = str(message.guild.id)
         
         # Check guild-specific config
-        is_enabled = await database.get_guild_config_value(guild_id, "MODERATION_ENABLED", "false")
+        is_enabled = await database.get_guild_config(guild_id, "MODERATION_ENABLED", "false")
         if is_enabled != "true":
             return
 
         # Prepare moderation prompt
-        sensitivity = await database.get_guild_config_value(guild_id, "MODERATION_SENSITIVITY", config.MODERATION_SENSITIVITY)
+        sensitivity = await database.get_guild_config(guild_id, "MODERATION_SENSITIVITY", config.MODERATION_SENSITIVITY)
         
         print(f"[DEBUG] Scanning message from {message.author} in guild {guild_id}...")
         
@@ -103,7 +103,7 @@ class ModerationCog(commands.Cog):
         )
 
         # Post to mod-log channel
-        mod_channel_id = await database.get_guild_config_value(guild_id, "MOD_LOG_CHANNEL_ID", config.MOD_LOG_CHANNEL_ID)
+        mod_channel_id = await database.get_guild_config(guild_id, "MOD_LOG_CHANNEL_ID", config.MOD_LOG_CHANNEL_ID)
         if not mod_channel_id:
             return
 

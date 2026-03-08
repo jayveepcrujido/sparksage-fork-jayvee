@@ -22,7 +22,7 @@ class DigestCog(commands.Cog):
             guild_id = str(guild.id)
             
             # Get guild-specific digest config
-            is_enabled = await database.get_guild_config_value(guild_id, "DIGEST_ENABLED", "false")
+            is_enabled = await database.get_guild_config(guild_id, "DIGEST_ENABLED", "false")
             if is_enabled != "true":
                 # Fallback to global if not set specifically for guild? 
                 # Better to require explicit enablement per guild or use global as default.
@@ -30,11 +30,11 @@ class DigestCog(commands.Cog):
                 if not config.DIGEST_ENABLED:
                     continue
             
-            digest_time = await database.get_guild_config_value(guild_id, "DIGEST_TIME", config.DIGEST_TIME)
+            digest_time = await database.get_guild_config(guild_id, "DIGEST_TIME", config.DIGEST_TIME)
             if current_time != digest_time:
                 continue
 
-            digest_channel_id = await database.get_guild_config_value(guild_id, "DIGEST_CHANNEL_ID", config.DIGEST_CHANNEL_ID)
+            digest_channel_id = await database.get_guild_config(guild_id, "DIGEST_CHANNEL_ID", config.DIGEST_CHANNEL_ID)
             if not digest_channel_id:
                 continue
 

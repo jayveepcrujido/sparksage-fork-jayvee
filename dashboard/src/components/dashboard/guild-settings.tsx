@@ -24,6 +24,7 @@ export function GuildSettings() {
   const [config, setConfig] = useState<Record<string, string>>({
     MODERATION_ENABLED: "false",
     MOD_LOG_CHANNEL_ID: "",
+    MODERATION_SENSITIVITY: "medium",
     DIGEST_ENABLED: "false",
     DIGEST_CHANNEL_ID: "",
     DIGEST_TIME: "09:00",
@@ -108,19 +109,37 @@ export function GuildSettings() {
               />
             </div>
             {config.MODERATION_ENABLED === "true" && (
-              <div className="grid gap-2 pl-6">
-                <Label htmlFor="mod-log-select">Moderation Log Channel</Label>
-                <select
-                  id="mod-log-select"
-                  value={config.MOD_LOG_CHANNEL_ID}
-                  onChange={(e) => handleUpdate("MOD_LOG_CHANNEL_ID", e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  <option value="">Select a channel...</option>
-                  {channels.map(ch => (
-                    <option key={ch.id} value={ch.id}>#{ch.name}</option>
-                  ))}
-                </select>
+              <div className="space-y-4 pl-6">
+                <div className="grid gap-2">
+                  <Label htmlFor="mod-log-select">Moderation Log Channel</Label>
+                  <select
+                    id="mod-log-select"
+                    value={config.MOD_LOG_CHANNEL_ID}
+                    onChange={(e) => handleUpdate("MOD_LOG_CHANNEL_ID", e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="">Select a channel...</option>
+                    {channels.map(ch => (
+                      <option key={ch.id} value={ch.id}>#{ch.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="mod-sensitivity-select">Moderation Sensitivity</Label>
+                  <select
+                    id="mod-sensitivity-select"
+                    value={config.MODERATION_SENSITIVITY}
+                    onChange={(e) => handleUpdate("MODERATION_SENSITIVITY", e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <option value="low">Low (Extreme only)</option>
+                    <option value="medium">Medium (Standard)</option>
+                    <option value="high">High (Strict)</option>
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Higher sensitivity flags more mild issues but may have more false positives.
+                  </p>
+                </div>
               </div>
             )}
           </div>
