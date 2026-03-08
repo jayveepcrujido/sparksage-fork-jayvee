@@ -22,6 +22,7 @@ export function GuildSettings() {
   
   // Guild Config States
   const [config, setConfig] = useState<Record<string, string>>({
+    AI_PERSONA: "default",
     MODERATION_ENABLED: "false",
     MOD_LOG_CHANNEL_ID: "",
     MODERATION_SENSITIVITY: "medium",
@@ -91,6 +92,35 @@ export function GuildSettings() {
           </div>
         </CardHeader>
         <CardContent className="space-y-8">
+          {/* AI Persona */}
+          <div className="space-y-4">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Settings2 className="h-4 w-4 text-muted-foreground" />
+                <Label className="text-base">AI Persona</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choose the bot's personality and communication style.
+              </p>
+            </div>
+            <div className="grid gap-2">
+              <select
+                id="persona-select"
+                value={config.AI_PERSONA}
+                onChange={(e) => handleUpdate("AI_PERSONA", e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value="default">SparkSage (Default)</option>
+                <option value="assistant">Professional Assistant</option>
+                <option value="grumpy_dev">Grumpy Senior Developer</option>
+                <option value="sarcastic">Sarcastic Bot</option>
+                <option value="teacher">Encouraging Teacher</option>
+              </select>
+            </div>
+          </div>
+
+          <Separator />
+
           {/* Moderation */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">

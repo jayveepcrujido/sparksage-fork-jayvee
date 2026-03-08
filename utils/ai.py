@@ -57,12 +57,21 @@ async def ask_ai(
 
     history = await get_history(channel_id)
     
-    # Check for channel-specific prompt
+    # Determine system prompt
     channel_prompt = await database.get_channel_prompt(str(channel_id))
-    if not system_prompt:
-        sys_prompt = channel_prompt or config.SYSTEM_PROMPT
-    else:
+    
+    if system_prompt:
         sys_prompt = system_prompt
+    elif channel_prompt:
+        sys_prompt = channel_prompt
+    else:
+        # Check for guild-specific persona
+        persona_key = config.AI_PERSONA
+        if guild_id:
+            persona_key = await database.get_guild_config(str(guild_id), "AI_PERSONA", config.AI_PERSONA)
+        
+        # Use persona prompt if it exists, otherwise fallback to global system prompt
+        sys_prompt = config.PERSONAS.get(persona_key, config.SYSTEM_PROMPT)
 
     # Check for channel-specific provider
     preferred_provider = await database.get_channel_provider(str(channel_id))
