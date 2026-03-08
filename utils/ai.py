@@ -51,7 +51,8 @@ async def ask_ai(
         str(channel_id), 
         "user", 
         f"{user_name}: {message}",
-        category=category
+        category=category,
+        guild_id=str(guild_id) if guild_id else None
     )
 
     history = await get_history(channel_id)
@@ -96,7 +97,8 @@ async def ask_ai(
             "assistant", 
             response, 
             provider=provider_name,
-            category=category
+            category=category,
+            guild_id=str(guild_id) if guild_id else None
         )
 
         # Log Analytics
