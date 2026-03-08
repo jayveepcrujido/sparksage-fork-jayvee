@@ -59,9 +59,10 @@ async def export_conversation(channel_id: str, format: str = "json", user: dict 
             # fpdf v1.7.2 only supports latin-1. Replace unencodable characters.
             line = content.encode("latin-1", "replace").decode("latin-1")
             pdf.multi_cell(0, 8, line)
-        buf = BytesIO()
-        pdf.output(buf)
-        buf.seek(0)
+        
+        # fpdf 1.7.2 returns a latin-1 string in Python 3. We must convert it to bytes.
+        pdf_content = pdf.output(dest="S")
+        buf = BytesIO(pdf_content.encode("latin-1"))
         from fastapi.responses import StreamingResponse
         return StreamingResponse(buf, media_type="application/pdf")
 
